@@ -9,7 +9,7 @@ import {Colors, Spacing, FontSize} from '../constants';
 import {StorageService} from '../services/StorageService';
 import {useApp} from '../context/AppContext';
 
-const APP_VERSION = '0.0.1';
+const APP_VERSION = '0.0.2';
 
 const SettingsScreen: React.FC = () => {
   const {dispatch} = useApp();

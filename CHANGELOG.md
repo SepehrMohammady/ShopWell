@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.2] - 2026-02-01
+
+### Fixed
+- Fixed TypeScript configuration for proper module resolution
+- Resolved all 376 compilation errors
+- Updated dependency versions for compatibility:
+  - react-native-gesture-handler@2.14.1
+  - react-native-screens@3.29.0
+- Added @types/react and @types/react-native for proper type support
+
+### Added
+- Android native project setup with proper package naming (com.shopwell)
+- Release APK build configuration
+- Built first native release APK (23.4 MB)
+
+### Changed
+- Updated tsconfig.json with proper React Native settings
+- Improved type declarations configuration
+
 ## [0.0.1] - 2026-01-31
 
 ### Added
