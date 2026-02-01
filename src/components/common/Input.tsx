@@ -11,7 +11,8 @@ import {
   ViewStyle,
   TextInputProps,
 } from 'react-native';
-import {Colors, Spacing, BorderRadius, FontSize} from '../../constants';
+import {Spacing, BorderRadius, FontSize} from '../../constants';
+import {useTheme} from '../../context/ThemeContext';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -21,16 +22,26 @@ interface InputProps extends TextInputProps {
 
 const Input = forwardRef<TextInput, InputProps>(
   ({label, error, containerStyle, style, ...props}, ref) => {
+    const {colors} = useTheme();
+
     return (
       <View style={[styles.container, containerStyle]}>
-        {label && <Text style={styles.label}>{label}</Text>}
+        {label && <Text style={[styles.label, {color: colors.text}]}>{label}</Text>}
         <TextInput
           ref={ref}
-          style={[styles.input, error && styles.inputError, style]}
-          placeholderTextColor={Colors.textLight}
+          style={[
+            styles.input,
+            {
+              backgroundColor: colors.surface,
+              borderColor: error ? colors.error : colors.border,
+              color: colors.text,
+            },
+            style,
+          ]}
+          placeholderTextColor={colors.textLight}
           {...props}
         />
-        {error && <Text style={styles.error}>{error}</Text>}
+        {error && <Text style={[styles.error, {color: colors.error}]}>{error}</Text>}
       </View>
     );
   },
@@ -45,26 +56,18 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSize.sm,
     fontWeight: '500',
-    color: Colors.text,
     marginBottom: Spacing.sm,
   },
   input: {
-    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
     fontSize: FontSize.base,
-    color: Colors.text,
     minHeight: 48,
-  },
-  inputError: {
-    borderColor: Colors.error,
   },
   error: {
     fontSize: FontSize.sm,
-    color: Colors.error,
     marginTop: Spacing.xs,
   },
 });

@@ -9,7 +9,8 @@ import ShoppingListsScreen from '../screens/ShoppingListsScreen';
 import ShopsScreen from '../screens/ShopsScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-import {Colors, Spacing} from '../constants';
+import {Spacing} from '../constants';
+import {useTheme} from '../context/ThemeContext';
 import {View, StyleSheet, Text} from 'react-native';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -18,15 +19,16 @@ interface TabIconProps {
   focused: boolean;
   icon: string;
   label: string;
+  colors: any;
 }
 
-const TabIcon: React.FC<TabIconProps> = ({focused, icon, label}) => {
+const TabIcon: React.FC<TabIconProps> = ({focused, icon, label, colors}) => {
   return (
     <View style={styles.tabIconContainer}>
       <Text style={[styles.tabIcon, focused && styles.tabIconFocused]}>
         {icon}
       </Text>
-      <Text style={[styles.tabLabel, focused && styles.tabLabelFocused]}>
+      <Text style={[styles.tabLabel, {color: focused ? colors.primary : colors.textSecondary}, focused && styles.tabLabelFocused]}>
         {label}
       </Text>
     </View>
@@ -34,26 +36,28 @@ const TabIcon: React.FC<TabIconProps> = ({focused, icon, label}) => {
 };
 
 const MainTabNavigator: React.FC = () => {
+  const {colors} = useTheme();
+
   return (
     <Tab.Navigator
       screenOptions={{
         tabBarStyle: {
-          backgroundColor: Colors.surface,
+          backgroundColor: colors.surface,
           borderTopWidth: 1,
-          borderTopColor: Colors.border,
+          borderTopColor: colors.border,
           height: 64,
           paddingBottom: Spacing.sm,
           paddingTop: Spacing.sm,
         },
         tabBarShowLabel: false,
         headerStyle: {
-          backgroundColor: Colors.surface,
+          backgroundColor: colors.surface,
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 1,
-          borderBottomColor: Colors.border,
+          borderBottomColor: colors.border,
         },
-        headerTintColor: Colors.text,
+        headerTintColor: colors.text,
         headerTitleStyle: {
           fontWeight: '600',
         },
@@ -64,7 +68,7 @@ const MainTabNavigator: React.FC = () => {
         options={{
           title: 'Shopping Lists',
           tabBarIcon: ({focused}) => (
-            <TabIcon focused={focused} icon="📝" label="Lists" />
+            <TabIcon focused={focused} icon="📝" label="Lists" colors={colors} />
           ),
         }}
       />
@@ -74,7 +78,7 @@ const MainTabNavigator: React.FC = () => {
         options={{
           title: 'My Shops',
           tabBarIcon: ({focused}) => (
-            <TabIcon focused={focused} icon="🏪" label="Shops" />
+            <TabIcon focused={focused} icon="🏪" label="Shops" colors={colors} />
           ),
         }}
       />
@@ -84,7 +88,7 @@ const MainTabNavigator: React.FC = () => {
         options={{
           title: 'Schedule',
           tabBarIcon: ({focused}) => (
-            <TabIcon focused={focused} icon="📅" label="Schedule" />
+            <TabIcon focused={focused} icon="📅" label="Schedule" colors={colors} />
           ),
         }}
       />
@@ -94,7 +98,7 @@ const MainTabNavigator: React.FC = () => {
         options={{
           title: 'Settings',
           tabBarIcon: ({focused}) => (
-            <TabIcon focused={focused} icon="⚙️" label="Settings" />
+            <TabIcon focused={focused} icon="⚙️" label="Settings" colors={colors} />
           ),
         }}
       />
@@ -116,11 +120,9 @@ const styles = StyleSheet.create({
   },
   tabLabel: {
     fontSize: 10,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   tabLabelFocused: {
-    color: Colors.primary,
     fontWeight: '600',
   },
 });

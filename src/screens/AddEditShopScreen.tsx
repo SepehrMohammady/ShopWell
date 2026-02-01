@@ -15,8 +15,9 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList, Shop, ShopCategory} from '../types';
 import {useApp} from '../context/AppContext';
+import {useTheme} from '../context/ThemeContext';
 import {Button, Input, Card} from '../components/common';
-import {Colors, Spacing, FontSize, CategoryColors} from '../constants';
+import {Spacing, FontSize, CategoryColors} from '../constants';
 import {generateId, getCurrentTimestamp} from '../utils';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -35,6 +36,7 @@ const AddEditShopScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const {state, addShop, updateShop, deleteShop} = useApp();
+  const {colors} = useTheme();
 
   const shopId = route.params?.shopId;
   const existingShop = shopId
@@ -110,7 +112,7 @@ const AddEditShopScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -129,17 +131,18 @@ const AddEditShopScreen: React.FC = () => {
           placeholder="e.g., 123 Main Street"
         />
 
-        <Text style={styles.label}>Category</Text>
+        <Text style={[styles.label, {color: colors.text}]}>Category</Text>
         <View style={styles.categoryGrid}>
           {categories.map(cat => {
             const isSelected = category === cat.id;
-            const categoryColor = CategoryColors[cat.id] || Colors.other;
+            const categoryColor = CategoryColors[cat.id] || colors.other;
 
             return (
               <TouchableOpacity
                 key={cat.id}
                 style={[
                   styles.categoryItem,
+                  {backgroundColor: colors.surface, borderColor: colors.border},
                   isSelected && {
                     borderColor: categoryColor,
                     backgroundColor: `${categoryColor}15`,
@@ -151,6 +154,7 @@ const AddEditShopScreen: React.FC = () => {
                 <Text
                   style={[
                     styles.categoryLabel,
+                    {color: colors.textSecondary},
                     isSelected && {color: categoryColor},
                   ]}>
                   {cat.label}
@@ -161,10 +165,10 @@ const AddEditShopScreen: React.FC = () => {
         </View>
 
         <TouchableOpacity
-          style={styles.favoriteRow}
+          style={[styles.favoriteRow, {backgroundColor: colors.surface, borderColor: colors.border}]}
           onPress={() => setIsFavorite(!isFavorite)}
           activeOpacity={0.7}>
-          <Text style={styles.favoriteLabel}>Mark as Favorite</Text>
+          <Text style={[styles.favoriteLabel, {color: colors.text}]}>Mark as Favorite</Text>
           <Text style={styles.favoriteIcon}>{isFavorite ? '⭐' : '☆'}</Text>
         </TouchableOpacity>
 
@@ -178,7 +182,7 @@ const AddEditShopScreen: React.FC = () => {
         />
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, {backgroundColor: colors.surface, borderTopColor: colors.border}]}>
         <Button
           title={existingShop ? 'Save Changes' : 'Add Shop'}
           onPress={handleSave}
@@ -192,7 +196,6 @@ const AddEditShopScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -205,14 +208,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
   },
   deleteText: {
-    color: Colors.error,
     fontSize: FontSize.base,
     fontWeight: '500',
   },
   label: {
     fontSize: FontSize.sm,
     fontWeight: '500',
-    color: Colors.text,
     marginBottom: Spacing.sm,
   },
   categoryGrid: {
@@ -226,11 +227,9 @@ const styles = StyleSheet.create({
     marginHorizontal: '1.66%',
     marginBottom: Spacing.sm,
     padding: Spacing.md,
-    backgroundColor: Colors.surface,
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.border,
   },
   categoryEmoji: {
     fontSize: 24,
@@ -238,23 +237,19 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
     fontWeight: '500',
   },
   favoriteRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
     padding: Spacing.base,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
     marginBottom: Spacing.base,
   },
   favoriteLabel: {
     fontSize: FontSize.base,
-    color: Colors.text,
   },
   favoriteIcon: {
     fontSize: 24,
@@ -265,9 +260,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: Spacing.base,
-    backgroundColor: Colors.surface,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
   },
 });
 

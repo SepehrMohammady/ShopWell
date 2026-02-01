@@ -15,8 +15,9 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList, ShoppingList, ShoppingItem} from '../types';
 import {useApp} from '../context/AppContext';
+import {useTheme} from '../context/ThemeContext';
 import {Button, Input, Card, Checkbox} from '../components/common';
-import {Colors, Spacing, FontSize} from '../constants';
+import {Spacing, FontSize} from '../constants';
 import {generateId, getCurrentTimestamp} from '../utils';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -26,6 +27,7 @@ const AddEditListScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const {state, addList, updateList, deleteList} = useApp();
+  const {colors} = useTheme();
 
   const listId = route.params?.listId;
   const existingList = listId
@@ -123,7 +125,7 @@ const AddEditListScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -135,7 +137,7 @@ const AddEditListScreen: React.FC = () => {
           placeholder="e.g., Weekly Groceries"
         />
 
-        <Text style={styles.sectionTitle}>Items ({items.length})</Text>
+        <Text style={[styles.sectionTitle, {color: colors.text}]}>Items ({items.length})</Text>
 
         <View style={styles.addItemRow}>
           <Input
@@ -165,14 +167,14 @@ const AddEditListScreen: React.FC = () => {
               <TouchableOpacity
                 onPress={() => handleRemoveItem(item.id)}
                 style={styles.removeButton}>
-                <Text style={styles.removeText}>✕</Text>
+                <Text style={[styles.removeText, {color: colors.error}]}>✕</Text>
               </TouchableOpacity>
             </View>
           </Card>
         ))}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, {backgroundColor: colors.surface, borderTopColor: colors.border}]}>
         <Button
           title={existingList ? 'Save Changes' : 'Create List'}
           onPress={handleSave}
@@ -186,7 +188,6 @@ const AddEditListScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -199,14 +200,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
   },
   deleteText: {
-    color: Colors.error,
     fontSize: FontSize.base,
     fontWeight: '500',
   },
   sectionTitle: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.text,
     marginTop: Spacing.lg,
     marginBottom: Spacing.md,
   },
@@ -233,7 +232,6 @@ const styles = StyleSheet.create({
     padding: Spacing.sm,
   },
   removeText: {
-    color: Colors.error,
     fontSize: FontSize.lg,
   },
   footer: {
@@ -242,9 +240,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: Spacing.base,
-    backgroundColor: Colors.surface,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
   },
 });
 

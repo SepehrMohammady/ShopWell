@@ -4,7 +4,8 @@
 
 import React from 'react';
 import {View, StyleSheet, ViewStyle, TouchableOpacity} from 'react-native';
-import {Colors, Spacing, BorderRadius} from '../../constants';
+import {Spacing, BorderRadius} from '../../constants';
+import {useTheme} from '../../context/ThemeContext';
 
 interface CardProps {
   children: React.ReactNode;
@@ -19,7 +20,17 @@ const Card: React.FC<CardProps> = ({
   onPress,
   elevated = false,
 }) => {
-  const cardStyle = [styles.card, elevated && styles.elevated, style];
+  const {colors} = useTheme();
+
+  const cardStyle = [
+    styles.card,
+    {
+      backgroundColor: colors.card,
+      borderColor: colors.border,
+    },
+    elevated && [styles.elevated, {shadowColor: colors.shadow}],
+    style,
+  ];
 
   if (onPress) {
     return (
@@ -37,15 +48,12 @@ const Card: React.FC<CardProps> = ({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: Colors.card,
     borderRadius: BorderRadius.lg,
     padding: Spacing.base,
     marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: Colors.border,
   },
   elevated: {
-    shadowColor: Colors.shadow,
     shadowOffset: {
       width: 0,
       height: 2,

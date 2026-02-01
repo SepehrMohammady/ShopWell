@@ -11,27 +11,29 @@ import AddEditShopScreen from '../screens/AddEditShopScreen';
 import AddEditScheduleScreen from '../screens/AddEditScheduleScreen';
 import ListDetailScreen from '../screens/ListDetailScreen';
 import ShopDetailScreen from '../screens/ShopDetailScreen';
-import {Colors} from '../constants';
+import {useTheme} from '../context/ThemeContext';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 const RootNavigator: React.FC = () => {
+  const {colors} = useTheme();
+
   return (
     <Stack.Navigator
       screenOptions={{
         headerStyle: {
-          backgroundColor: Colors.surface,
+          backgroundColor: colors.surface,
           elevation: 0,
           shadowOpacity: 0,
           borderBottomWidth: 1,
-          borderBottomColor: Colors.border,
+          borderBottomColor: colors.border,
         },
-        headerTintColor: Colors.text,
+        headerTintColor: colors.text,
         headerTitleStyle: {
           fontWeight: '600',
         },
         cardStyle: {
-          backgroundColor: Colors.background,
+          backgroundColor: colors.background,
         },
       }}>
       <Stack.Screen

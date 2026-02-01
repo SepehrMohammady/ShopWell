@@ -11,7 +11,8 @@ import {
   TextStyle,
   ActivityIndicator,
 } from 'react-native';
-import {Colors, Spacing, BorderRadius, FontSize} from '../../constants';
+import {Spacing, BorderRadius, FontSize} from '../../constants';
+import {useTheme} from '../../context/ThemeContext';
 
 interface ButtonProps {
   title: string;
@@ -36,6 +37,8 @@ const Button: React.FC<ButtonProps> = ({
   textStyle,
   fullWidth = false,
 }) => {
+  const {colors} = useTheme();
+
   const getButtonStyle = (): ViewStyle[] => {
     const baseStyles: ViewStyle[] = [styles.button, styles[`${size}Button`]];
 
@@ -45,16 +48,20 @@ const Button: React.FC<ButtonProps> = ({
 
     switch (variant) {
       case 'primary':
-        baseStyles.push(styles.primaryButton);
+        baseStyles.push({backgroundColor: colors.primary});
         break;
       case 'secondary':
-        baseStyles.push(styles.secondaryButton);
+        baseStyles.push({backgroundColor: colors.secondary});
         break;
       case 'outline':
-        baseStyles.push(styles.outlineButton);
+        baseStyles.push({
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderColor: colors.primary,
+        });
         break;
       case 'ghost':
-        baseStyles.push(styles.ghostButton);
+        baseStyles.push({backgroundColor: 'transparent'});
         break;
     }
 
@@ -70,21 +77,21 @@ const Button: React.FC<ButtonProps> = ({
 
     switch (variant) {
       case 'primary':
-        baseStyles.push(styles.primaryText);
+        baseStyles.push({color: colors.textInverse});
         break;
       case 'secondary':
-        baseStyles.push(styles.secondaryText);
+        baseStyles.push({color: colors.textInverse});
         break;
       case 'outline':
-        baseStyles.push(styles.outlineText);
+        baseStyles.push({color: colors.primary});
         break;
       case 'ghost':
-        baseStyles.push(styles.ghostText);
+        baseStyles.push({color: colors.primary});
         break;
     }
 
     if (disabled) {
-      baseStyles.push(styles.disabledText);
+      baseStyles.push({color: colors.textLight});
     }
 
     return baseStyles;
@@ -98,7 +105,7 @@ const Button: React.FC<ButtonProps> = ({
       activeOpacity={0.7}>
       {loading ? (
         <ActivityIndicator
-          color={variant === 'primary' ? Colors.textInverse : Colors.primary}
+          color={variant === 'primary' ? colors.textInverse : colors.primary}
           size="small"
         />
       ) : (
@@ -135,21 +142,6 @@ const styles = StyleSheet.create({
     minHeight: 52,
   },
 
-  // Variant styles
-  primaryButton: {
-    backgroundColor: Colors.primary,
-  },
-  secondaryButton: {
-    backgroundColor: Colors.secondary,
-  },
-  outlineButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: Colors.primary,
-  },
-  ghostButton: {
-    backgroundColor: 'transparent',
-  },
   disabledButton: {
     opacity: 0.5,
   },
@@ -166,21 +158,6 @@ const styles = StyleSheet.create({
   },
   largeText: {
     fontSize: FontSize.base,
-  },
-  primaryText: {
-    color: Colors.textInverse,
-  },
-  secondaryText: {
-    color: Colors.textInverse,
-  },
-  outlineText: {
-    color: Colors.primary,
-  },
-  ghostText: {
-    color: Colors.primary,
-  },
-  disabledText: {
-    color: Colors.textLight,
   },
 });
 

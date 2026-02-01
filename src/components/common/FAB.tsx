@@ -4,7 +4,8 @@
 
 import React from 'react';
 import {TouchableOpacity, Text, StyleSheet, ViewStyle} from 'react-native';
-import {Colors, BorderRadius} from '../../constants';
+import {BorderRadius} from '../../constants';
+import {useTheme} from '../../context/ThemeContext';
 
 interface FABProps {
   onPress: () => void;
@@ -13,12 +14,14 @@ interface FABProps {
 }
 
 const FAB: React.FC<FABProps> = ({onPress, icon = '+', style}) => {
+  const {colors} = useTheme();
+
   return (
     <TouchableOpacity
-      style={[styles.fab, style]}
+      style={[styles.fab, {backgroundColor: colors.primary, shadowColor: colors.shadow}, style]}
       onPress={onPress}
       activeOpacity={0.8}>
-      <Text style={styles.icon}>{icon}</Text>
+      <Text style={[styles.icon, {color: colors.textInverse}]}>{icon}</Text>
     </TouchableOpacity>
   );
 };
@@ -31,10 +34,8 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: BorderRadius.round,
-    backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: Colors.shadow,
     shadowOffset: {
       width: 0,
       height: 4,
@@ -45,7 +46,6 @@ const styles = StyleSheet.create({
   },
   icon: {
     fontSize: 28,
-    color: Colors.textInverse,
     fontWeight: '300',
     marginTop: -2,
   },

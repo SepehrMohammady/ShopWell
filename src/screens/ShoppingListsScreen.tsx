@@ -8,8 +8,9 @@ import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList, ShoppingList} from '../types';
 import {useApp} from '../context/AppContext';
+import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, FAB} from '../components/common';
-import {Colors, Spacing, FontSize} from '../constants';
+import {Spacing, FontSize} from '../constants';
 import {formatDate} from '../utils';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -17,6 +18,7 @@ type NavigationProp = StackNavigationProp<RootStackParamList>;
 const ShoppingListsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const {state} = useApp();
+  const {colors} = useTheme();
 
   const handleAddList = () => {
     navigation.navigate('AddEditList', {});
@@ -34,22 +36,22 @@ const ShoppingListsScreen: React.FC = () => {
     return (
       <Card onPress={() => handleListPress(item.id)} elevated>
         <View style={styles.listHeader}>
-          <Text style={styles.listName}>{item.name}</Text>
-          {item.isCompleted && <Text style={styles.completedBadge}>✓</Text>}
+          <Text style={[styles.listName, {color: colors.text}]}>{item.name}</Text>
+          {item.isCompleted && <Text style={[styles.completedBadge, {color: colors.success}]}>✓</Text>}
         </View>
-        <Text style={styles.listMeta}>
+        <Text style={[styles.listMeta, {color: colors.textSecondary}]}>
           {totalItems} items • {completedItems} completed
         </Text>
         {item.scheduledDate && (
-          <Text style={styles.scheduledDate}>
+          <Text style={[styles.scheduledDate, {color: colors.primary}]}>
             📅 {formatDate(item.scheduledDate)}
           </Text>
         )}
         <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <View style={[styles.progressFill, {width: `${progress}%`}]} />
+          <View style={[styles.progressBar, {backgroundColor: colors.border}]}>
+            <View style={[styles.progressFill, {width: `${progress}%`, backgroundColor: colors.primary}]} />
           </View>
-          <Text style={styles.progressText}>{Math.round(progress)}%</Text>
+          <Text style={[styles.progressText, {color: colors.textSecondary}]}>{Math.round(progress)}%</Text>
         </View>
       </Card>
     );
@@ -57,7 +59,7 @@ const ShoppingListsScreen: React.FC = () => {
 
   if (state.shoppingLists.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
         <EmptyState
           icon="📝"
           title="No Shopping Lists"
@@ -70,7 +72,7 @@ const ShoppingListsScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
       <FlatList
         data={state.shoppingLists}
         renderItem={renderListItem}
@@ -86,7 +88,6 @@ const ShoppingListsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   listContainer: {
     padding: Spacing.base,
@@ -101,21 +102,17 @@ const styles = StyleSheet.create({
   listName: {
     fontSize: FontSize.lg,
     fontWeight: '600',
-    color: Colors.text,
     flex: 1,
   },
   completedBadge: {
     fontSize: FontSize.lg,
-    color: Colors.success,
   },
   listMeta: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginBottom: Spacing.sm,
   },
   scheduledDate: {
     fontSize: FontSize.sm,
-    color: Colors.primary,
     marginBottom: Spacing.sm,
   },
   progressContainer: {
@@ -126,18 +123,15 @@ const styles = StyleSheet.create({
   progressBar: {
     flex: 1,
     height: 4,
-    backgroundColor: Colors.border,
     borderRadius: 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.primary,
     borderRadius: 2,
   },
   progressText: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
     marginLeft: Spacing.sm,
     width: 35,
     textAlign: 'right',

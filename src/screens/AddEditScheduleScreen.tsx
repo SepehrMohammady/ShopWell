@@ -16,8 +16,9 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList, Schedule} from '../types';
 import {useApp} from '../context/AppContext';
+import {useTheme} from '../context/ThemeContext';
 import {Button, Input, Card} from '../components/common';
-import {Colors, Spacing, FontSize} from '../constants';
+import {Spacing, FontSize} from '../constants';
 import {generateId, getCurrentTimestamp, formatDate} from '../utils';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -42,6 +43,7 @@ const AddEditScheduleScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const {state, addSchedule, updateSchedule, deleteSchedule} = useApp();
+  const {colors} = useTheme();
 
   const scheduleId = route.params?.scheduleId;
   const existingSchedule = scheduleId
@@ -145,7 +147,7 @@ const AddEditScheduleScreen: React.FC = () => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}
@@ -157,10 +159,10 @@ const AddEditScheduleScreen: React.FC = () => {
           placeholder="e.g., Weekly grocery shopping"
         />
 
-        <Text style={styles.label}>Date</Text>
+        <Text style={[styles.label, {color: colors.text}]}>Date</Text>
         <Card>
-          <Text style={styles.dateText}>📅 {formatDate(date)}</Text>
-          <Text style={styles.helperText}>
+          <Text style={[styles.dateText, {color: colors.text}]}>📅 {formatDate(date)}</Text>
+          <Text style={[styles.helperText, {color: colors.textLight}]}>
             Tap to change date (date picker coming soon)
           </Text>
         </Card>
@@ -174,7 +176,7 @@ const AddEditScheduleScreen: React.FC = () => {
 
         {state.shops.length > 0 && (
           <>
-            <Text style={styles.label}>Assign to Shop (optional)</Text>
+            <Text style={[styles.label, {color: colors.text}]}>Assign to Shop (optional)</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -182,20 +184,22 @@ const AddEditScheduleScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.selectItem,
-                  !selectedShopId && styles.selectItemSelected,
+                  {backgroundColor: colors.surface, borderColor: colors.border},
+                  !selectedShopId && {backgroundColor: colors.primary, borderColor: colors.primary},
                 ]}
                 onPress={() => setSelectedShopId('')}>
-                <Text style={styles.selectItemText}>None</Text>
+                <Text style={[styles.selectItemText, {color: !selectedShopId ? colors.textInverse : colors.text}]}>None</Text>
               </TouchableOpacity>
               {state.shops.map(shop => (
                 <TouchableOpacity
                   key={shop.id}
                   style={[
                     styles.selectItem,
-                    selectedShopId === shop.id && styles.selectItemSelected,
+                    {backgroundColor: colors.surface, borderColor: colors.border},
+                    selectedShopId === shop.id && {backgroundColor: colors.primary, borderColor: colors.primary},
                   ]}
                   onPress={() => setSelectedShopId(shop.id)}>
-                  <Text style={styles.selectItemText}>{shop.name}</Text>
+                  <Text style={[styles.selectItemText, {color: selectedShopId === shop.id ? colors.textInverse : colors.text}]}>{shop.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -204,7 +208,7 @@ const AddEditScheduleScreen: React.FC = () => {
 
         {state.shoppingLists.length > 0 && (
           <>
-            <Text style={styles.label}>Link to Shopping List (optional)</Text>
+            <Text style={[styles.label, {color: colors.text}]}>Link to Shopping List (optional)</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -212,40 +216,44 @@ const AddEditScheduleScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.selectItem,
-                  !selectedListId && styles.selectItemSelected,
+                  {backgroundColor: colors.surface, borderColor: colors.border},
+                  !selectedListId && {backgroundColor: colors.primary, borderColor: colors.primary},
                 ]}
                 onPress={() => setSelectedListId('')}>
-                <Text style={styles.selectItemText}>None</Text>
+                <Text style={[styles.selectItemText, {color: !selectedListId ? colors.textInverse : colors.text}]}>None</Text>
               </TouchableOpacity>
               {state.shoppingLists.map(list => (
                 <TouchableOpacity
                   key={list.id}
                   style={[
                     styles.selectItem,
-                    selectedListId === list.id && styles.selectItemSelected,
+                    {backgroundColor: colors.surface, borderColor: colors.border},
+                    selectedListId === list.id && {backgroundColor: colors.primary, borderColor: colors.primary},
                   ]}
                   onPress={() => setSelectedListId(list.id)}>
-                  <Text style={styles.selectItemText}>{list.name}</Text>
+                  <Text style={[styles.selectItemText, {color: selectedListId === list.id ? colors.textInverse : colors.text}]}>{list.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </>
         )}
 
-        <Text style={styles.label}>Repeat</Text>
+        <Text style={[styles.label, {color: colors.text}]}>Repeat</Text>
         <View style={styles.optionRow}>
           {recurringOptions.map(option => (
             <TouchableOpacity
               key={option.id}
               style={[
                 styles.optionItem,
-                recurring === option.id && styles.optionItemSelected,
+                {backgroundColor: colors.surface, borderColor: colors.border},
+                recurring === option.id && {backgroundColor: colors.primary, borderColor: colors.primary},
               ]}
               onPress={() => setRecurring(option.id)}>
               <Text
                 style={[
                   styles.optionText,
-                  recurring === option.id && styles.optionTextSelected,
+                  {color: colors.text},
+                  recurring === option.id && {color: colors.textInverse},
                 ]}>
                 {option.label}
               </Text>
@@ -253,20 +261,22 @@ const AddEditScheduleScreen: React.FC = () => {
           ))}
         </View>
 
-        <Text style={styles.label}>Reminder</Text>
+        <Text style={[styles.label, {color: colors.text}]}>Reminder</Text>
         <View style={styles.optionColumn}>
           {reminderOptions.map(option => (
             <TouchableOpacity
               key={option.id}
               style={[
                 styles.reminderItem,
-                reminderMinutes === option.id && styles.reminderItemSelected,
+                {backgroundColor: colors.surface, borderColor: colors.border},
+                reminderMinutes === option.id && {backgroundColor: colors.primary, borderColor: colors.primary},
               ]}
               onPress={() => setReminderMinutes(option.id)}>
               <Text
                 style={[
                   styles.reminderText,
-                  reminderMinutes === option.id && styles.reminderTextSelected,
+                  {color: colors.text},
+                  reminderMinutes === option.id && {color: colors.textInverse},
                 ]}>
                 {option.label}
               </Text>
@@ -298,7 +308,7 @@ const AddEditScheduleScreen: React.FC = () => {
         )}
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, {backgroundColor: colors.surface, borderTopColor: colors.border}]}>
         <Button
           title={existingSchedule ? 'Save Changes' : 'Create Schedule'}
           onPress={handleSave}
@@ -312,7 +322,6 @@ const AddEditScheduleScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -325,24 +334,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
   },
   deleteText: {
-    color: Colors.error,
     fontSize: FontSize.base,
     fontWeight: '500',
   },
   label: {
     fontSize: FontSize.sm,
     fontWeight: '500',
-    color: Colors.text,
     marginBottom: Spacing.sm,
     marginTop: Spacing.md,
   },
   dateText: {
     fontSize: FontSize.base,
-    color: Colors.text,
   },
   helperText: {
     fontSize: FontSize.xs,
-    color: Colors.textLight,
     marginTop: Spacing.xs,
   },
   horizontalScroll: {
@@ -351,19 +356,12 @@ const styles = StyleSheet.create({
   selectItem: {
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.surface,
     borderRadius: 20,
     marginRight: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  selectItemSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   selectItemText: {
     fontSize: FontSize.sm,
-    color: Colors.text,
   },
   optionRow: {
     flexDirection: 'row',
@@ -373,45 +371,25 @@ const styles = StyleSheet.create({
   optionItem: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
-    backgroundColor: Colors.surface,
     borderRadius: 8,
     marginRight: Spacing.sm,
     marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  optionItemSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   optionText: {
     fontSize: FontSize.sm,
-    color: Colors.text,
-  },
-  optionTextSelected: {
-    color: Colors.textInverse,
   },
   optionColumn: {
     marginBottom: Spacing.md,
   },
   reminderItem: {
     padding: Spacing.md,
-    backgroundColor: Colors.surface,
     borderRadius: 8,
     marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  reminderItemSelected: {
-    backgroundColor: Colors.primary,
-    borderColor: Colors.primary,
   },
   reminderText: {
     fontSize: FontSize.sm,
-    color: Colors.text,
-  },
-  reminderTextSelected: {
-    color: Colors.textInverse,
   },
   completeButton: {
     marginTop: Spacing.lg,
@@ -422,9 +400,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     padding: Spacing.base,
-    backgroundColor: Colors.surface,
     borderTopWidth: 1,
-    borderTopColor: Colors.border,
   },
 });
 

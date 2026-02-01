@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.3] - 2026-02-01
+
+### Added
+- **Dark Mode Support**: Automatic system theme detection with Light/Dark/System options
+- **Theme Settings**: Users can now choose between Light, Dark, or System theme in Settings
+- **Centralized Version Management**: Single source of truth for app version (src/constants/Version.ts)
+- **App Icons**: Added custom app icons from assets folder to Android mipmap resources
+
+### Fixed
+- **App Crash Fix**: Fixed crash when creating lists, shops, or schedules (replaced uuid library with native implementation)
+- **Version Sync**: All version references now centralized and in sync across:
+  - package.json
+  - android/app/build.gradle
+  - Settings screen
+  - Version.ts constant
+
+### Changed
+- Updated all screens and components to support dynamic theming
+- Migrated from static Colors to useTheme hook for runtime color updates
+- Improved navigation theming with proper dark mode support
+- Updated UI components (Card, Button, Input, etc.) to use theme context
+
 ## [0.0.2] - 2026-02-01
 
 ### Fixed

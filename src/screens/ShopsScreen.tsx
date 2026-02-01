@@ -8,8 +8,9 @@ import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList, Shop} from '../types';
 import {useApp} from '../context/AppContext';
+import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, FAB} from '../components/common';
-import {Colors, Spacing, FontSize, CategoryColors} from '../constants';
+import {Spacing, FontSize, CategoryColors} from '../constants';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -25,6 +26,7 @@ const categoryEmojis: {[key: string]: string} = {
 const ShopsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const {state} = useApp();
+  const {colors} = useTheme();
 
   const handleAddShop = () => {
     navigation.navigate('AddEditShop', {});
@@ -35,7 +37,7 @@ const ShopsScreen: React.FC = () => {
   };
 
   const renderShopItem = ({item}: {item: Shop}) => {
-    const categoryColor = CategoryColors[item.category] || Colors.other;
+    const categoryColor = CategoryColors[item.category] || colors.other;
 
     return (
       <Card onPress={() => handleShopPress(item.id)} elevated>
@@ -49,15 +51,15 @@ const ShopsScreen: React.FC = () => {
             </View>
             <View style={styles.shopDetails}>
               <View style={styles.nameRow}>
-                <Text style={styles.shopName}>{item.name}</Text>
+                <Text style={[styles.shopName, {color: colors.text}]}>{item.name}</Text>
                 {item.isFavorite && <Text style={styles.favorite}>⭐</Text>}
               </View>
               {item.address && (
-                <Text style={styles.shopAddress} numberOfLines={1}>
+                <Text style={[styles.shopAddress, {color: colors.textSecondary}]} numberOfLines={1}>
                   📍 {item.address}
                 </Text>
               )}
-              <Text style={styles.categoryLabel}>
+              <Text style={[styles.categoryLabel, {color: colors.textSecondary}]}>
                 {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
               </Text>
             </View>
@@ -69,7 +71,7 @@ const ShopsScreen: React.FC = () => {
 
   if (state.shops.length === 0) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
         <EmptyState
           icon="🏪"
           title="No Shops Yet"
@@ -82,7 +84,7 @@ const ShopsScreen: React.FC = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
       <FlatList
         data={state.shops}
         renderItem={renderShopItem}
@@ -98,7 +100,6 @@ const ShopsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   listContainer: {
     padding: Spacing.base,
@@ -134,7 +135,6 @@ const styles = StyleSheet.create({
   shopName: {
     fontSize: FontSize.lg,
     fontWeight: '600',
-    color: Colors.text,
   },
   favorite: {
     fontSize: FontSize.md,
@@ -142,12 +142,10 @@ const styles = StyleSheet.create({
   },
   shopAddress: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   categoryLabel: {
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
     marginTop: 4,
     textTransform: 'capitalize',
   },

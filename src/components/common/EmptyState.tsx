@@ -4,7 +4,8 @@
 
 import React from 'react';
 import {View, Text, StyleSheet} from 'react-native';
-import {Colors, Spacing, FontSize} from '../../constants';
+import {Spacing, FontSize} from '../../constants';
+import {useTheme} from '../../context/ThemeContext';
 import Button from './Button';
 
 interface EmptyStateProps {
@@ -22,11 +23,13 @@ const EmptyState: React.FC<EmptyStateProps> = ({
   actionLabel,
   onAction,
 }) => {
+  const {colors} = useTheme();
+
   return (
     <View style={styles.container}>
       <Text style={styles.icon}>{icon}</Text>
-      <Text style={styles.title}>{title}</Text>
-      <Text style={styles.message}>{message}</Text>
+      <Text style={[styles.title, {color: colors.text}]}>{title}</Text>
+      <Text style={[styles.message, {color: colors.textSecondary}]}>{message}</Text>
       {actionLabel && onAction && (
         <Button
           title={actionLabel}
@@ -54,13 +57,11 @@ const styles = StyleSheet.create({
   title: {
     fontSize: FontSize.xl,
     fontWeight: '600',
-    color: Colors.text,
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },
   message: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: Spacing.lg,

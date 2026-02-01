@@ -8,8 +8,9 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList} from '../types';
 import {useApp} from '../context/AppContext';
+import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState} from '../components/common';
-import {Colors, Spacing, FontSize, CategoryColors} from '../constants';
+import {Spacing, FontSize, CategoryColors} from '../constants';
 import {formatDate, getCurrentTimestamp} from '../utils';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -28,6 +29,7 @@ const ShopDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const {state, updateShop} = useApp();
+  const {colors} = useTheme();
 
   const shopId = route.params.shopId;
   const shop = state.shops.find(s => s.id === shopId);
@@ -52,7 +54,7 @@ const ShopDetailScreen: React.FC = () => {
 
   if (!shop) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, {backgroundColor: colors.background}]}>
         <EmptyState
           icon="❌"
           title="Shop Not Found"
@@ -70,10 +72,10 @@ const ShopDetailScreen: React.FC = () => {
     });
   };
 
-  const categoryColor = CategoryColors[shop.category] || Colors.other;
+  const categoryColor = CategoryColors[shop.category] || colors.other;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, {backgroundColor: colors.background}]}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.content}>
@@ -87,8 +89,8 @@ const ShopDetailScreen: React.FC = () => {
               </Text>
             </View>
             <View style={styles.shopInfo}>
-              <Text style={styles.shopName}>{shop.name}</Text>
-              <Text style={styles.categoryLabel}>
+              <Text style={[styles.shopName, {color: colors.text}]}>{shop.name}</Text>
+              <Text style={[styles.categoryLabel, {color: colors.textSecondary}]}>
                 {shop.category.charAt(0).toUpperCase() + shop.category.slice(1)}
               </Text>
             </View>
@@ -105,29 +107,29 @@ const ShopDetailScreen: React.FC = () => {
         {/* Address */}
         {shop.address && (
           <Card>
-            <Text style={styles.detailLabel}>📍 Address</Text>
-            <Text style={styles.detailValue}>{shop.address}</Text>
+            <Text style={[styles.detailLabel, {color: colors.textSecondary}]}>📍 Address</Text>
+            <Text style={[styles.detailValue, {color: colors.text}]}>{shop.address}</Text>
           </Card>
         )}
 
         {/* Notes */}
         {shop.notes && (
           <Card>
-            <Text style={styles.detailLabel}>📝 Notes</Text>
-            <Text style={styles.detailValue}>{shop.notes}</Text>
+            <Text style={[styles.detailLabel, {color: colors.textSecondary}]}>📝 Notes</Text>
+            <Text style={[styles.detailValue, {color: colors.text}]}>{shop.notes}</Text>
           </Card>
         )}
 
         {/* Created Date */}
         <Card>
-          <Text style={styles.detailLabel}>📅 Added</Text>
-          <Text style={styles.detailValue}>{formatDate(shop.createdAt)}</Text>
+          <Text style={[styles.detailLabel, {color: colors.textSecondary}]}>📅 Added</Text>
+          <Text style={[styles.detailValue, {color: colors.text}]}>{formatDate(shop.createdAt)}</Text>
         </Card>
 
         {/* Related Schedules */}
         {relatedSchedules.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>
+            <Text style={[styles.sectionTitle, {color: colors.text}]}>
               Upcoming Schedules ({relatedSchedules.length})
             </Text>
             {relatedSchedules.map(schedule => (
@@ -138,8 +140,8 @@ const ShopDetailScreen: React.FC = () => {
                     scheduleId: schedule.id,
                   })
                 }>
-                <Text style={styles.scheduleTitle}>{schedule.title}</Text>
-                <Text style={styles.scheduleDate}>
+                <Text style={[styles.scheduleTitle, {color: colors.text}]}>{schedule.title}</Text>
+                <Text style={[styles.scheduleDate, {color: colors.textSecondary}]}>
                   📅 {formatDate(schedule.date)}
                 </Text>
               </Card>
@@ -154,7 +156,6 @@ const ShopDetailScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   scrollView: {
     flex: 1,
@@ -166,7 +167,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
   },
   editText: {
-    color: Colors.primary,
     fontSize: FontSize.base,
     fontWeight: '500',
   },
@@ -191,11 +191,9 @@ const styles = StyleSheet.create({
   shopName: {
     fontSize: FontSize.xl,
     fontWeight: '600',
-    color: Colors.text,
   },
   categoryLabel: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: 2,
   },
   favoriteButton: {
@@ -206,28 +204,23 @@ const styles = StyleSheet.create({
   },
   detailLabel: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginBottom: Spacing.xs,
   },
   detailValue: {
     fontSize: FontSize.base,
-    color: Colors.text,
   },
   sectionTitle: {
     fontSize: FontSize.md,
     fontWeight: '600',
-    color: Colors.text,
     marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
   },
   scheduleTitle: {
     fontSize: FontSize.base,
     fontWeight: '500',
-    color: Colors.text,
   },
   scheduleDate: {
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
     marginTop: Spacing.xs,
   },
 });

@@ -3,16 +3,16 @@
  */
 
 import React from 'react';
-import {View, Text, StyleSheet, ScrollView, Alert, Linking} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity} from 'react-native';
 import {Card} from '../components/common';
-import {Colors, Spacing, FontSize} from '../constants';
+import {Spacing, FontSize, APP_VERSION} from '../constants';
 import {StorageService} from '../services/StorageService';
 import {useApp} from '../context/AppContext';
-
-const APP_VERSION = '0.0.2';
+import {useTheme, ThemeMode} from '../context/ThemeContext';
 
 const SettingsScreen: React.FC = () => {
   const {dispatch} = useApp();
+  const {colors, themeMode, setThemeMode} = useTheme();
 
   const handleClearData = () => {
     Alert.alert(
@@ -40,45 +40,82 @@ const SettingsScreen: React.FC = () => {
     Linking.openURL('mailto:support@shopwell.app');
   };
 
+  const themeModes: {label: string; value: ThemeMode}[] = [
+    {label: 'Light', value: 'light'},
+    {label: 'Dark', value: 'dark'},
+    {label: 'System', value: 'system'},
+  ];
+
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
       <View style={styles.content}>
-        <Text style={styles.sectionTitle}>About</Text>
+        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Appearance</Text>
         <Card>
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>App Version</Text>
-            <Text style={styles.settingValue}>{APP_VERSION}</Text>
+            <Text style={[styles.settingLabel, {color: colors.text}]}>Theme</Text>
           </View>
-          <View style={styles.divider} />
-          <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Platform</Text>
-            <Text style={styles.settingValue}>React Native</Text>
+          <View style={styles.themeSelector}>
+            {themeModes.map((mode) => (
+              <TouchableOpacity
+                key={mode.value}
+                style={[
+                  styles.themeOption,
+                  {
+                    backgroundColor: themeMode === mode.value ? colors.primary : colors.surface,
+                    borderColor: themeMode === mode.value ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => setThemeMode(mode.value)}
+              >
+                <Text
+                  style={[
+                    styles.themeOptionText,
+                    {color: themeMode === mode.value ? colors.white : colors.text},
+                  ]}
+                >
+                  {mode.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </Card>
 
-        <Text style={styles.sectionTitle}>Data</Text>
+        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>About</Text>
+        <Card>
+          <View style={styles.settingRow}>
+            <Text style={[styles.settingLabel, {color: colors.text}]}>App Version</Text>
+            <Text style={[styles.settingValue, {color: colors.textSecondary}]}>{APP_VERSION}</Text>
+          </View>
+          <View style={[styles.divider, {backgroundColor: colors.border}]} />
+          <View style={styles.settingRow}>
+            <Text style={[styles.settingLabel, {color: colors.text}]}>Platform</Text>
+            <Text style={[styles.settingValue, {color: colors.textSecondary}]}>React Native</Text>
+          </View>
+        </Card>
+
+        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Data</Text>
         <Card onPress={handleClearData}>
           <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, styles.dangerText]}>
+            <Text style={[styles.settingLabel, {color: colors.error}]}>
               Clear All Data
             </Text>
-            <Text style={styles.arrow}>→</Text>
+            <Text style={[styles.arrow, {color: colors.textLight}]}>→</Text>
           </View>
         </Card>
 
-        <Text style={styles.sectionTitle}>Support</Text>
+        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Support</Text>
         <Card onPress={handleContact}>
           <View style={styles.settingRow}>
-            <Text style={styles.settingLabel}>Contact Us</Text>
-            <Text style={styles.arrow}>→</Text>
+            <Text style={[styles.settingLabel, {color: colors.text}]}>Contact Us</Text>
+            <Text style={[styles.arrow, {color: colors.textLight}]}>→</Text>
           </View>
         </Card>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>
+          <Text style={[styles.footerText, {color: colors.textSecondary}]}>
             ShopWell - Smart Shopping Management
           </Text>
-          <Text style={styles.footerSubtext}>
+          <Text style={[styles.footerSubtext, {color: colors.textLight}]}>
             Made with ❤️ for better shopping
           </Text>
         </View>
@@ -90,7 +127,6 @@ const SettingsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
   content: {
     padding: Spacing.base,
@@ -98,7 +134,6 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.textSecondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: Spacing.sm,
@@ -113,22 +148,32 @@ const styles = StyleSheet.create({
   },
   settingLabel: {
     fontSize: FontSize.base,
-    color: Colors.text,
   },
   settingValue: {
     fontSize: FontSize.base,
-    color: Colors.textSecondary,
   },
-  dangerText: {
-    color: Colors.error,
+  themeSelector: {
+    flexDirection: 'row',
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  themeOption: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  themeOptionText: {
+    fontSize: FontSize.sm,
+    fontWeight: '500',
   },
   arrow: {
     fontSize: FontSize.lg,
-    color: Colors.textLight,
   },
   divider: {
     height: 1,
-    backgroundColor: Colors.border,
     marginVertical: Spacing.md,
   },
   footer: {
@@ -137,12 +182,10 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
     fontWeight: '500',
   },
   footerSubtext: {
     fontSize: FontSize.sm,
-    color: Colors.textLight,
     marginTop: Spacing.xs,
   },
 });
