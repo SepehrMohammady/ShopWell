@@ -3,7 +3,16 @@
  */
 
 import React, {createContext, useContext, useReducer, useEffect} from 'react';
-import {ShoppingList, Shop, Schedule, AppState} from '../types';
+import {
+  ShoppingList,
+  Shop,
+  Schedule,
+  Product,
+  ShopProduct,
+  AppState,
+  AppSettings,
+  defaultSettings,
+} from '../types';
 import {StorageService} from '../services/StorageService';
 
 // Action types
@@ -17,7 +26,14 @@ type Action =
   | {type: 'DELETE_SHOP'; payload: string}
   | {type: 'ADD_SCHEDULE'; payload: Schedule}
   | {type: 'UPDATE_SCHEDULE'; payload: Schedule}
-  | {type: 'DELETE_SCHEDULE'; payload: string};
+  | {type: 'DELETE_SCHEDULE'; payload: string}
+  | {type: 'ADD_PRODUCT'; payload: Product}
+  | {type: 'UPDATE_PRODUCT'; payload: Product}
+  | {type: 'DELETE_PRODUCT'; payload: string}
+  | {type: 'ADD_SHOP_PRODUCT'; payload: ShopProduct}
+  | {type: 'UPDATE_SHOP_PRODUCT'; payload: ShopProduct}
+  | {type: 'DELETE_SHOP_PRODUCT'; payload: string}
+  | {type: 'UPDATE_SETTINGS'; payload: Partial<AppSettings>};
 
 interface AppContextType {
   state: AppState;
@@ -34,12 +50,29 @@ interface AppContextType {
   addSchedule: (schedule: Schedule) => void;
   updateSchedule: (schedule: Schedule) => void;
   deleteSchedule: (id: string) => void;
+  // Products
+  addProduct: (product: Product) => void;
+  updateProduct: (product: Product) => void;
+  deleteProduct: (id: string) => void;
+  // Shop Products (prices)
+  addShopProduct: (shopProduct: ShopProduct) => void;
+  updateShopProduct: (shopProduct: ShopProduct) => void;
+  deleteShopProduct: (id: string) => void;
+  // Settings
+  updateSettings: (settings: Partial<AppSettings>) => void;
+  // Helpers
+  getProductsForShop: (shopId: string) => Array<{product: Product; shopProduct: ShopProduct}>;
+  getShopsForProduct: (productId: string) => Array<{shop: Shop; shopProduct: ShopProduct}>;
+  getShopProduct: (productId: string, shopId: string) => ShopProduct | undefined;
 }
 
 const initialState: AppState = {
   shoppingLists: [],
   shops: [],
   schedules: [],
+  products: [],
+  shopProducts: [],
+  settings: defaultSettings,
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -47,7 +80,11 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 function appReducer(state: AppState, action: Action): AppState {
   switch (action.type) {
     case 'SET_STATE':
-      return action.payload;
+      return {
+        ...initialState,
+        ...action.payload,
+        settings: {...defaultSettings, ...action.payload.settings},
+      };
 
     case 'ADD_LIST':
       return {
@@ -89,6 +126,8 @@ function appReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         shops: state.shops.filter(shop => shop.id !== action.payload),
+        // Also remove shop products for this shop
+        shopProducts: state.shopProducts.filter(sp => sp.shopId !== action.payload),
       };
 
     case 'ADD_SCHEDULE':
@@ -111,6 +150,54 @@ function appReducer(state: AppState, action: Action): AppState {
         schedules: state.schedules.filter(
           schedule => schedule.id !== action.payload,
         ),
+      };
+
+    case 'ADD_PRODUCT':
+      return {
+        ...state,
+        products: [...state.products, action.payload],
+      };
+
+    case 'UPDATE_PRODUCT':
+      return {
+        ...state,
+        products: state.products.map(product =>
+          product.id === action.payload.id ? action.payload : product,
+        ),
+      };
+
+    case 'DELETE_PRODUCT':
+      return {
+        ...state,
+        products: state.products.filter(product => product.id !== action.payload),
+        // Also remove shop products for this product
+        shopProducts: state.shopProducts.filter(sp => sp.productId !== action.payload),
+      };
+
+    case 'ADD_SHOP_PRODUCT':
+      return {
+        ...state,
+        shopProducts: [...state.shopProducts, action.payload],
+      };
+
+    case 'UPDATE_SHOP_PRODUCT':
+      return {
+        ...state,
+        shopProducts: state.shopProducts.map(sp =>
+          sp.id === action.payload.id ? action.payload : sp,
+        ),
+      };
+
+    case 'DELETE_SHOP_PRODUCT':
+      return {
+        ...state,
+        shopProducts: state.shopProducts.filter(sp => sp.id !== action.payload),
+      };
+
+    case 'UPDATE_SETTINGS':
+      return {
+        ...state,
+        settings: {...state.settings, ...action.payload},
       };
 
     default:
@@ -139,6 +226,7 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
     StorageService.saveAppState(state);
   }, [state]);
 
+  // Shopping Lists
   const addList = (list: ShoppingList) => {
     dispatch({type: 'ADD_LIST', payload: list});
   };
@@ -151,6 +239,7 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
     dispatch({type: 'DELETE_LIST', payload: id});
   };
 
+  // Shops
   const addShop = (shop: Shop) => {
     dispatch({type: 'ADD_SHOP', payload: shop});
   };
@@ -163,6 +252,7 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
     dispatch({type: 'DELETE_SHOP', payload: id});
   };
 
+  // Schedules
   const addSchedule = (schedule: Schedule) => {
     dispatch({type: 'ADD_SCHEDULE', payload: schedule});
   };
@@ -173,6 +263,66 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
 
   const deleteSchedule = (id: string) => {
     dispatch({type: 'DELETE_SCHEDULE', payload: id});
+  };
+
+  // Products
+  const addProduct = (product: Product) => {
+    dispatch({type: 'ADD_PRODUCT', payload: product});
+  };
+
+  const updateProduct = (product: Product) => {
+    dispatch({type: 'UPDATE_PRODUCT', payload: product});
+  };
+
+  const deleteProduct = (id: string) => {
+    dispatch({type: 'DELETE_PRODUCT', payload: id});
+  };
+
+  // Shop Products
+  const addShopProduct = (shopProduct: ShopProduct) => {
+    dispatch({type: 'ADD_SHOP_PRODUCT', payload: shopProduct});
+  };
+
+  const updateShopProduct = (shopProduct: ShopProduct) => {
+    dispatch({type: 'UPDATE_SHOP_PRODUCT', payload: shopProduct});
+  };
+
+  const deleteShopProduct = (id: string) => {
+    dispatch({type: 'DELETE_SHOP_PRODUCT', payload: id});
+  };
+
+  // Settings
+  const updateSettings = (settings: Partial<AppSettings>) => {
+    dispatch({type: 'UPDATE_SETTINGS', payload: settings});
+  };
+
+  // Helper: Get all products available at a shop with their prices
+  const getProductsForShop = (shopId: string) => {
+    return state.shopProducts
+      .filter(sp => sp.shopId === shopId)
+      .map(sp => {
+        const product = state.products.find(p => p.id === sp.productId);
+        return product ? {product, shopProduct: sp} : null;
+      })
+      .filter((item): item is {product: Product; shopProduct: ShopProduct} => item !== null);
+  };
+
+  // Helper: Get all shops that carry a product with their prices
+  const getShopsForProduct = (productId: string) => {
+    return state.shopProducts
+      .filter(sp => sp.productId === productId)
+      .map(sp => {
+        const shop = state.shops.find(s => s.id === sp.shopId);
+        return shop ? {shop, shopProduct: sp} : null;
+      })
+      .filter((item): item is {shop: Shop; shopProduct: ShopProduct} => item !== null);
+  };
+
+  // Helper: Get specific shop-product relationship
+  const getShopProduct = (productId: string, shopId: string) => {
+    return state.shopProducts.find(
+      sp => sp.productId === productId && sp.shopId === shopId,
+    );
   };
 
   return (
@@ -189,6 +339,16 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
         addSchedule,
         updateSchedule,
         deleteSchedule,
+        addProduct,
+        updateProduct,
+        deleteProduct,
+        addShopProduct,
+        updateShopProduct,
+        deleteShopProduct,
+        updateSettings,
+        getProductsForShop,
+        getShopsForProduct,
+        getShopProduct,
       }}>
       {children}
     </AppContext.Provider>

@@ -2,22 +2,89 @@
  * Settings Screen
  */
 
-import React from 'react';
-import {View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity} from 'react-native';
+import React, {useState} from 'react';
+import {View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity, Switch} from 'react-native';
 import {Card} from '../components/common';
 import {Spacing, FontSize, APP_VERSION} from '../constants';
 import {StorageService} from '../services/StorageService';
 import {useApp} from '../context/AppContext';
 import {useTheme, ThemeMode} from '../context/ThemeContext';
+import {
+  requestLocationPermission,
+  requestBackgroundLocationPermission,
+  checkLocationPermission,
+  openLocationSettings,
+  GeofenceManager,
+} from '../services/LocationService';
+import {initializeNotificationService} from '../services/NotificationService';
+import {defaultSettings} from '../types';
 
 const SettingsScreen: React.FC = () => {
-  const {dispatch} = useApp();
+  const {state, dispatch, updateSettings} = useApp();
   const {colors, themeMode, setThemeMode} = useTheme();
+  const [isCheckingPermission, setIsCheckingPermission] = useState(false);
+
+  const handleToggleLocationNotifications = async () => {
+    const newValue = !state.settings.locationNotificationsEnabled;
+    
+    if (newValue) {
+      setIsCheckingPermission(true);
+      
+      // Request location permission
+      const locationStatus = await requestLocationPermission();
+      
+      if (locationStatus === 'granted') {
+        // Request background location permission
+        const bgStatus = await requestBackgroundLocationPermission();
+        
+        if (bgStatus === 'granted') {
+          // Initialize notification service
+          await initializeNotificationService();
+          
+          // Start geofence monitoring
+          const shopsWithLocation = state.shops.filter(
+            s => s.latitude && s.longitude && s.notifyOnNearby,
+          );
+          await GeofenceManager.getInstance().startMonitoring(shopsWithLocation);
+          
+          updateSettings({locationNotificationsEnabled: true});
+          Alert.alert(
+            'Location Notifications Enabled',
+            `Monitoring ${shopsWithLocation.length} shops with location data.`,
+          );
+        } else if (bgStatus === 'never_ask_again') {
+          openLocationSettings();
+        } else {
+          Alert.alert(
+            'Background Location Required',
+            'Background location access is needed to notify you when near shops.',
+          );
+        }
+      } else if (locationStatus === 'never_ask_again') {
+        openLocationSettings();
+      } else {
+        Alert.alert(
+          'Permission Denied',
+          'Location permission is required to notify you when near shops.',
+        );
+      }
+      
+      setIsCheckingPermission(false);
+    } else {
+      // Disable location notifications
+      GeofenceManager.getInstance().stopMonitoring();
+      updateSettings({locationNotificationsEnabled: false});
+    }
+  };
+
+  const handleRadiusChange = (radius: number) => {
+    updateSettings({defaultGeofenceRadius: radius});
+  };
 
   const handleClearData = () => {
     Alert.alert(
       'Clear All Data',
-      'Are you sure you want to delete all your shopping lists, shops, and schedules? This action cannot be undone.',
+      'Are you sure you want to delete all your shopping lists, shops, schedules, and products? This action cannot be undone.',
       [
         {text: 'Cancel', style: 'cancel'},
         {
@@ -27,7 +94,14 @@ const SettingsScreen: React.FC = () => {
             await StorageService.clearAppState();
             dispatch({
               type: 'SET_STATE',
-              payload: {shoppingLists: [], shops: [], schedules: []},
+              payload: {
+                shoppingLists: [],
+                shops: [],
+                schedules: [],
+                products: [],
+                shopProducts: [],
+                settings: defaultSettings,
+              },
             });
             Alert.alert('Success', 'All data has been cleared.');
           },
@@ -78,6 +152,71 @@ const SettingsScreen: React.FC = () => {
               </TouchableOpacity>
             ))}
           </View>
+        </Card>
+
+        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Location Notifications</Text>
+        <Card>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, {color: colors.text}]}>
+                Notify when near shops
+              </Text>
+              <Text style={[styles.settingDescription, {color: colors.textSecondary}]}>
+                Get alerts when you're close to saved shops
+              </Text>
+            </View>
+            <Switch
+              value={state.settings.locationNotificationsEnabled}
+              onValueChange={handleToggleLocationNotifications}
+              trackColor={{false: colors.border, true: colors.primary + '80'}}
+              thumbColor={state.settings.locationNotificationsEnabled ? colors.primary : colors.surface}
+              disabled={isCheckingPermission}
+            />
+          </View>
+          
+          {state.settings.locationNotificationsEnabled && (
+            <>
+              <View style={[styles.divider, {backgroundColor: colors.border}]} />
+              <View style={styles.settingRow}>
+                <Text style={[styles.settingLabel, {color: colors.text}]}>
+                  Default notification radius
+                </Text>
+              </View>
+              <View style={styles.radiusSelector}>
+                {[100, 200, 500, 1000].map((radius) => (
+                  <TouchableOpacity
+                    key={radius}
+                    style={[
+                      styles.radiusOption,
+                      {
+                        backgroundColor: state.settings.defaultGeofenceRadius === radius
+                          ? colors.primary
+                          : colors.surface,
+                        borderColor: state.settings.defaultGeofenceRadius === radius
+                          ? colors.primary
+                          : colors.border,
+                      },
+                    ]}
+                    onPress={() => handleRadiusChange(radius)}
+                  >
+                    <Text
+                      style={[
+                        styles.radiusOptionText,
+                        {color: state.settings.defaultGeofenceRadius === radius
+                          ? colors.white
+                          : colors.text},
+                      ]}
+                    >
+                      {radius >= 1000 ? `${radius / 1000}km` : `${radius}m`}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={[styles.settingHint, {color: colors.textLight}]}>
+                {state.shops.filter(s => s.notifyOnNearby).length} shops configured for notifications
+              </Text>
+            </>
+          )}
         </Card>
 
         <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>About</Text>
@@ -146,8 +285,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: Spacing.xs,
   },
+  settingInfo: {
+    flex: 1,
+    marginRight: Spacing.base,
+  },
   settingLabel: {
     fontSize: FontSize.base,
+  },
+  settingDescription: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  settingHint: {
+    fontSize: FontSize.xs,
+    marginTop: Spacing.sm,
+    fontStyle: 'italic',
   },
   settingValue: {
     fontSize: FontSize.base,
@@ -167,6 +319,23 @@ const styles = StyleSheet.create({
   },
   themeOptionText: {
     fontSize: FontSize.sm,
+    fontWeight: '500',
+  },
+  radiusSelector: {
+    flexDirection: 'row',
+    marginTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  radiusOption: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.xs,
+    borderRadius: 8,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  radiusOptionText: {
+    fontSize: FontSize.xs,
     fontWeight: '500',
   },
   arrow: {

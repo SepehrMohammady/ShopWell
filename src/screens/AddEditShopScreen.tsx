@@ -52,6 +52,20 @@ const AddEditShopScreen: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(
     existingShop?.isFavorite || false,
   );
+  
+  // Location fields
+  const [latitude, setLatitude] = useState(
+    existingShop?.latitude?.toString() || '',
+  );
+  const [longitude, setLongitude] = useState(
+    existingShop?.longitude?.toString() || '',
+  );
+  const [geofenceRadius, setGeofenceRadius] = useState(
+    existingShop?.geofenceRadius?.toString() || state.settings.defaultGeofenceRadius.toString(),
+  );
+  const [notifyOnNearby, setNotifyOnNearby] = useState(
+    existingShop?.notifyOnNearby || false,
+  );
 
   useEffect(() => {
     navigation.setOptions({
@@ -72,6 +86,10 @@ const AddEditShopScreen: React.FC = () => {
       return;
     }
 
+    const lat = parseFloat(latitude);
+    const lng = parseFloat(longitude);
+    const radius = parseInt(geofenceRadius, 10);
+
     const now = getCurrentTimestamp();
     const shop: Shop = {
       id: existingShop?.id || generateId(),
@@ -80,6 +98,11 @@ const AddEditShopScreen: React.FC = () => {
       category,
       notes: notes.trim() || undefined,
       isFavorite,
+      // Location fields
+      latitude: !isNaN(lat) ? lat : undefined,
+      longitude: !isNaN(lng) ? lng : undefined,
+      geofenceRadius: !isNaN(radius) && radius > 0 ? radius : state.settings.defaultGeofenceRadius,
+      notifyOnNearby: notifyOnNearby && !isNaN(lat) && !isNaN(lng),
       createdAt: existingShop?.createdAt || now,
       updatedAt: now,
     };
@@ -180,6 +203,68 @@ const AddEditShopScreen: React.FC = () => {
           multiline
           numberOfLines={3}
         />
+
+        {/* Location Section */}
+        <Text style={[styles.sectionTitle, {color: colors.text}]}>
+          📍 Location (optional)
+        </Text>
+        <Text style={[styles.sectionDescription, {color: colors.textSecondary}]}>
+          Add coordinates to get notified when near this shop
+        </Text>
+
+        <View style={styles.coordinateRow}>
+          <View style={styles.coordinateField}>
+            <Input
+              label="Latitude"
+              value={latitude}
+              onChangeText={setLatitude}
+              placeholder="e.g., 45.4642"
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <View style={styles.coordinateField}>
+            <Input
+              label="Longitude"
+              value={longitude}
+              onChangeText={setLongitude}
+              placeholder="e.g., 9.1900"
+              keyboardType="decimal-pad"
+            />
+          </View>
+        </View>
+
+        {latitude && longitude && (
+          <>
+            <Input
+              label="Notification radius (meters)"
+              value={geofenceRadius}
+              onChangeText={setGeofenceRadius}
+              placeholder="200"
+              keyboardType="number-pad"
+            />
+
+            <TouchableOpacity
+              style={[
+                styles.notifyRow,
+                {
+                  backgroundColor: notifyOnNearby ? colors.primary + '15' : colors.surface,
+                  borderColor: notifyOnNearby ? colors.primary : colors.border,
+                },
+              ]}
+              onPress={() => setNotifyOnNearby(!notifyOnNearby)}
+              activeOpacity={0.7}>
+              <View style={styles.notifyContent}>
+                <Text style={[styles.notifyLabel, {color: colors.text}]}>
+                  Notify when nearby
+                </Text>
+                <Text style={[styles.notifyDescription, {color: colors.textSecondary}]}>
+                  Get a notification when you're within {geofenceRadius || state.settings.defaultGeofenceRadius}m
+                </Text>
+              </View>
+              <Text style={styles.notifyIcon}>{notifyOnNearby ? '🔔' : '🔕'}</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </ScrollView>
 
       <View style={[styles.footer, {backgroundColor: colors.surface, borderTopColor: colors.border}]}>
@@ -261,6 +346,48 @@ const styles = StyleSheet.create({
     right: 0,
     padding: Spacing.base,
     borderTopWidth: 1,
+  },
+  sectionTitle: {
+    fontSize: FontSize.md,
+    fontWeight: '600',
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.xs,
+  },
+  sectionDescription: {
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.base,
+  },
+  coordinateRow: {
+    flexDirection: 'row',
+    marginHorizontal: -Spacing.xs,
+  },
+  coordinateField: {
+    flex: 1,
+    marginHorizontal: Spacing.xs,
+  },
+  notifyRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.base,
+    borderRadius: 12,
+    borderWidth: 2,
+    marginBottom: Spacing.base,
+  },
+  notifyContent: {
+    flex: 1,
+  },
+  notifyLabel: {
+    fontSize: FontSize.base,
+    fontWeight: '600',
+  },
+  notifyDescription: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  notifyIcon: {
+    fontSize: 24,
+    marginLeft: Spacing.base,
   },
 });
 

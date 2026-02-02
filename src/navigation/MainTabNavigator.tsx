@@ -7,6 +7,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {MainTabParamList} from '../types';
 import ShoppingListsScreen from '../screens/ShoppingListsScreen';
 import ShopsScreen from '../screens/ShopsScreen';
+import {ProductsScreen} from '../screens/ProductsScreen';
 import ScheduleScreen from '../screens/ScheduleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import {Spacing} from '../constants';
@@ -79,6 +80,16 @@ const MainTabNavigator: React.FC = () => {
           title: 'My Shops',
           tabBarIcon: ({focused}) => (
             <TabIcon focused={focused} icon="🏪" label="Shops" colors={colors} />
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="Products"
+        component={ProductsScreen}
+        options={{
+          title: 'Products',
+          tabBarIcon: ({focused}) => (
+            <TabIcon focused={focused} icon="📦" label="Products" colors={colors} />
           ),
         }}
       />

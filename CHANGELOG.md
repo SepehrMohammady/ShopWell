@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.4] - 2026-02-02
+
+### Added
+- **Product Management**: New Products tab with full CRUD operations
+  - Add products with categories (Food, Health & Beauty, Household, Electronics, Clothing, Other)
+  - Set prices for products at different shops
+  - View price comparisons across all shops
+- **Shop Mode**: "Shop Here" feature when viewing a shop
+  - See all products available at selected shop
+  - Price comparison warnings when products are cheaper elsewhere
+  - Filter by category, toggle to show only items with warnings
+- **Location-Based Notifications** (infrastructure)
+  - Add GPS coordinates to shops for geofencing
+  - Configure notification radius per shop (100m, 200m, 500m, 1km)
+  - Toggle "Notify when nearby" for individual shops
+  - Master toggle in Settings for location notifications
+- **Price Comparison System**
+  - Automatic detection of cheapest shop for each product
+  - Savings calculations displayed in Shop Mode
+  - "Best price" badges for cheapest options
+- **Enhanced Settings**
+  - Location notifications toggle with permission handling
+  - Default geofence radius configuration
+  - Improved data clearing to include products
+
+### Changed
+- Extended Shop model with location fields (latitude, longitude, geofenceRadius, notifyOnNearby)
+- Extended AppContext with products, shopProducts, and settings management
+- Added Products tab to main navigation (5 tabs total)
+- Updated AndroidManifest with location and notification permissions
+
+### Technical
+- New types: Product, ShopProduct, ProductCategory, PriceComparison, AppSettings
+- New screens: ProductsScreen, AddEditProductScreen, ProductDetailScreen, ShopModeScreen
+- New services: LocationService, NotificationService
+- New utilities: priceHelper.ts with price comparison functions
+
 ## [0.0.3] - 2026-02-01
 
 ### Added

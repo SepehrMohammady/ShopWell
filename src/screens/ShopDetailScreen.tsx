@@ -9,9 +9,10 @@ import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
-import {Card, EmptyState} from '../components/common';
+import {Card, EmptyState, Button} from '../components/common';
 import {Spacing, FontSize, CategoryColors} from '../constants';
 import {formatDate, getCurrentTimestamp} from '../utils';
+import {formatPrice, getCheaperAlternatives} from '../utils/priceHelper';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'ShopDetail'>;
@@ -28,14 +29,21 @@ const categoryEmojis: {[key: string]: string} = {
 const ShopDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const {state, updateShop} = useApp();
+  const {state, updateShop, getProductsForShop} = useApp();
   const {colors} = useTheme();
 
   const shopId = route.params.shopId;
   const shop = state.shops.find(s => s.id === shopId);
 
-  // Find related schedules
+  // Find related schedules and products
   const relatedSchedules = state.schedules.filter(s => s.shopId === shopId);
+  const productsAtShop = getProductsForShop(shopId);
+  const cheaperAlternatives = getCheaperAlternatives(
+    shopId,
+    state.shopProducts,
+    state.shops,
+    state.products,
+  );
 
   React.useEffect(() => {
     if (shop) {
@@ -125,6 +133,55 @@ const ShopDetailScreen: React.FC = () => {
           <Text style={[styles.detailLabel, {color: colors.textSecondary}]}>📅 Added</Text>
           <Text style={[styles.detailValue, {color: colors.text}]}>{formatDate(shop.createdAt)}</Text>
         </Card>
+
+        {/* Shop Here Button */}
+        {productsAtShop.length > 0 && (
+          <TouchableOpacity
+            style={[styles.shopHereButton, {backgroundColor: colors.primary}]}
+            onPress={() => navigation.navigate('ShopMode', {shopId})}>
+            <Text style={styles.shopHereEmoji}>🛒</Text>
+            <View style={styles.shopHereContent}>
+              <Text style={styles.shopHereTitle}>Shop Here</Text>
+              <Text style={styles.shopHereSubtitle}>
+                {productsAtShop.length} product{productsAtShop.length !== 1 ? 's' : ''} available
+                {cheaperAlternatives.length > 0 && ` • ${cheaperAlternatives.length} with warnings`}
+              </Text>
+            </View>
+            <Text style={styles.shopHereArrow}>→</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Products at this shop */}
+        {productsAtShop.length > 0 && (
+          <>
+            <Text style={[styles.sectionTitle, {color: colors.text}]}>
+              Products ({productsAtShop.length})
+            </Text>
+            {productsAtShop.slice(0, 5).map(({product, shopProduct}) => (
+              <Card
+                key={product.id}
+                onPress={() => navigation.navigate('ProductDetail', {productId: product.id})}>
+                <View style={styles.productRow}>
+                  <Text style={[styles.productName, {color: colors.text}]}>
+                    {product.name}
+                  </Text>
+                  <Text style={[styles.productPrice, {color: colors.primary}]}>
+                    {formatPrice(shopProduct.price, state.settings.currency)}
+                  </Text>
+                </View>
+              </Card>
+            ))}
+            {productsAtShop.length > 5 && (
+              <TouchableOpacity
+                style={[styles.seeAllButton, {borderColor: colors.border}]}
+                onPress={() => navigation.navigate('ShopMode', {shopId})}>
+                <Text style={[styles.seeAllText, {color: colors.primary}]}>
+                  See all {productsAtShop.length} products →
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
+        )}
 
         {/* Related Schedules */}
         {relatedSchedules.length > 0 && (
@@ -222,6 +279,60 @@ const styles = StyleSheet.create({
   scheduleDate: {
     fontSize: FontSize.sm,
     marginTop: Spacing.xs,
+  },
+  shopHereButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.base,
+    borderRadius: 16,
+    marginTop: Spacing.base,
+  },
+  shopHereEmoji: {
+    fontSize: 32,
+    marginRight: Spacing.base,
+  },
+  shopHereContent: {
+    flex: 1,
+  },
+  shopHereTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
+  shopHereSubtitle: {
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.8)',
+    marginTop: 2,
+  },
+  shopHereArrow: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+  productRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  productName: {
+    fontSize: FontSize.base,
+    flex: 1,
+  },
+  productPrice: {
+    fontSize: FontSize.base,
+    fontWeight: '700',
+    marginLeft: Spacing.base,
+  },
+  seeAllButton: {
+    padding: Spacing.base,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 12,
+    borderStyle: 'dashed',
+  },
+  seeAllText: {
+    fontSize: FontSize.base,
+    fontWeight: '600',
   },
 });
 
