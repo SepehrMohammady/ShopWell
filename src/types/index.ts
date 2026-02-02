@@ -4,11 +4,11 @@
 
 // Product Category
 export type ProductCategory =
-  | 'food'
-  | 'healthBeauty'
+  | 'personalCare'
+  | 'healthWellness'
   | 'household'
-  | 'electronics'
-  | 'clothing'
+  | 'beverages'
+  | 'food'
   | 'other';
 
 // Product - Master product definition
@@ -16,17 +16,19 @@ export interface Product {
   id: string;
   name: string;
   category: ProductCategory;
-  defaultUnit?: string;
+  isAvailable: boolean; // true = we have it, false = on shopping list
   notes?: string;
   createdAt: string;
   updatedAt: string;
 }
 
-// Shop-Product relationship with price
-export interface ShopProduct {
+// Shop-Product-Brand relationship with price
+// A product can have multiple brands at each shop, each with its own price
+export interface ShopProductBrand {
   id: string;
   productId: string;
   shopId: string;
+  brand: string;
   price: number;
   currency: string;
   lastUpdated: string;
@@ -127,7 +129,7 @@ export interface AppState {
   shops: Shop[];
   schedules: Schedule[];
   products: Product[];
-  shopProducts: ShopProduct[];
+  shopProductBrands: ShopProductBrand[];
   settings: AppSettings;
 }
 
@@ -154,11 +156,11 @@ export type MainTabParamList = {
 
 // Product category display info
 export const ProductCategoryInfo: Record<ProductCategory, {label: string; icon: string; color: string}> = {
-  food: {label: 'Food', icon: '🍞', color: '#4CAF50'},
-  healthBeauty: {label: 'Health & Beauty', icon: '💄', color: '#E91E63'},
+  personalCare: {label: 'Personal Care', icon: '🧼', color: '#E91E63'},
+  healthWellness: {label: 'Health & Wellness', icon: '💊', color: '#4CAF50'},
   household: {label: 'Household', icon: '🏠', color: '#FF9800'},
-  electronics: {label: 'Electronics', icon: '📱', color: '#2196F3'},
-  clothing: {label: 'Clothing', icon: '👕', color: '#9C27B0'},
+  beverages: {label: 'Beverages', icon: '🧃', color: '#2196F3'},
+  food: {label: 'Food', icon: '🍞', color: '#8BC34A'},
   other: {label: 'Other', icon: '📦', color: '#607D8B'},
 };
 

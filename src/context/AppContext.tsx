@@ -8,7 +8,7 @@ import {
   Shop,
   Schedule,
   Product,
-  ShopProduct,
+  ShopProductBrand,
   AppState,
   AppSettings,
   defaultSettings,
@@ -30,9 +30,10 @@ type Action =
   | {type: 'ADD_PRODUCT'; payload: Product}
   | {type: 'UPDATE_PRODUCT'; payload: Product}
   | {type: 'DELETE_PRODUCT'; payload: string}
-  | {type: 'ADD_SHOP_PRODUCT'; payload: ShopProduct}
-  | {type: 'UPDATE_SHOP_PRODUCT'; payload: ShopProduct}
-  | {type: 'DELETE_SHOP_PRODUCT'; payload: string}
+  | {type: 'ADD_SHOP_PRODUCT_BRAND'; payload: ShopProductBrand}
+  | {type: 'UPDATE_SHOP_PRODUCT_BRAND'; payload: ShopProductBrand}
+  | {type: 'DELETE_SHOP_PRODUCT_BRAND'; payload: string}
+  | {type: 'DELETE_SHOP_PRODUCT_BRANDS_FOR_PRODUCT'; payload: string}
   | {type: 'UPDATE_SETTINGS'; payload: Partial<AppSettings>};
 
 interface AppContextType {
@@ -54,16 +55,20 @@ interface AppContextType {
   addProduct: (product: Product) => void;
   updateProduct: (product: Product) => void;
   deleteProduct: (id: string) => void;
-  // Shop Products (prices)
-  addShopProduct: (shopProduct: ShopProduct) => void;
-  updateShopProduct: (shopProduct: ShopProduct) => void;
-  deleteShopProduct: (id: string) => void;
+  toggleProductAvailability: (id: string) => void;
+  // Shop Product Brands (prices per brand at each shop)
+  addShopProductBrand: (spb: ShopProductBrand) => void;
+  updateShopProductBrand: (spb: ShopProductBrand) => void;
+  deleteShopProductBrand: (id: string) => void;
+  deleteShopProductBrandsForProduct: (productId: string) => void;
   // Settings
   updateSettings: (settings: Partial<AppSettings>) => void;
   // Helpers
-  getProductsForShop: (shopId: string) => Array<{product: Product; shopProduct: ShopProduct}>;
-  getShopsForProduct: (productId: string) => Array<{shop: Shop; shopProduct: ShopProduct}>;
-  getShopProduct: (productId: string, shopId: string) => ShopProduct | undefined;
+  getProductsForShop: (shopId: string) => Array<{product: Product; brands: ShopProductBrand[]}>;
+  getBrandsForProductAtShop: (productId: string, shopId: string) => ShopProductBrand[];
+  getShopsForProduct: (productId: string) => Array<{shop: Shop; brands: ShopProductBrand[]}>;
+  getShoppingList: () => Product[]; // Products where isAvailable = false
+  getAvailableProducts: () => Product[]; // Products where isAvailable = true
 }
 
 const initialState: AppState = {
@@ -71,7 +76,7 @@ const initialState: AppState = {
   shops: [],
   schedules: [],
   products: [],
-  shopProducts: [],
+  shopProductBrands: [],
   settings: defaultSettings,
 };
 
@@ -126,8 +131,8 @@ function appReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         shops: state.shops.filter(shop => shop.id !== action.payload),
-        // Also remove shop products for this shop
-        shopProducts: state.shopProducts.filter(sp => sp.shopId !== action.payload),
+        // Also remove shop product brands for this shop
+        shopProductBrands: state.shopProductBrands.filter(spb => spb.shopId !== action.payload),
       };
 
     case 'ADD_SCHEDULE':
@@ -170,28 +175,34 @@ function appReducer(state: AppState, action: Action): AppState {
       return {
         ...state,
         products: state.products.filter(product => product.id !== action.payload),
-        // Also remove shop products for this product
-        shopProducts: state.shopProducts.filter(sp => sp.productId !== action.payload),
+        // Also remove shop product brands for this product
+        shopProductBrands: state.shopProductBrands.filter(spb => spb.productId !== action.payload),
       };
 
-    case 'ADD_SHOP_PRODUCT':
+    case 'ADD_SHOP_PRODUCT_BRAND':
       return {
         ...state,
-        shopProducts: [...state.shopProducts, action.payload],
+        shopProductBrands: [...state.shopProductBrands, action.payload],
       };
 
-    case 'UPDATE_SHOP_PRODUCT':
+    case 'UPDATE_SHOP_PRODUCT_BRAND':
       return {
         ...state,
-        shopProducts: state.shopProducts.map(sp =>
-          sp.id === action.payload.id ? action.payload : sp,
+        shopProductBrands: state.shopProductBrands.map(spb =>
+          spb.id === action.payload.id ? action.payload : spb,
         ),
       };
 
-    case 'DELETE_SHOP_PRODUCT':
+    case 'DELETE_SHOP_PRODUCT_BRAND':
       return {
         ...state,
-        shopProducts: state.shopProducts.filter(sp => sp.id !== action.payload),
+        shopProductBrands: state.shopProductBrands.filter(spb => spb.id !== action.payload),
+      };
+
+    case 'DELETE_SHOP_PRODUCT_BRANDS_FOR_PRODUCT':
+      return {
+        ...state,
+        shopProductBrands: state.shopProductBrands.filter(spb => spb.productId !== action.payload),
       };
 
     case 'UPDATE_SETTINGS':
@@ -278,17 +289,35 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
     dispatch({type: 'DELETE_PRODUCT', payload: id});
   };
 
-  // Shop Products
-  const addShopProduct = (shopProduct: ShopProduct) => {
-    dispatch({type: 'ADD_SHOP_PRODUCT', payload: shopProduct});
+  const toggleProductAvailability = (id: string) => {
+    const product = state.products.find(p => p.id === id);
+    if (product) {
+      dispatch({
+        type: 'UPDATE_PRODUCT',
+        payload: {
+          ...product,
+          isAvailable: !product.isAvailable,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    }
   };
 
-  const updateShopProduct = (shopProduct: ShopProduct) => {
-    dispatch({type: 'UPDATE_SHOP_PRODUCT', payload: shopProduct});
+  // Shop Product Brands
+  const addShopProductBrand = (spb: ShopProductBrand) => {
+    dispatch({type: 'ADD_SHOP_PRODUCT_BRAND', payload: spb});
   };
 
-  const deleteShopProduct = (id: string) => {
-    dispatch({type: 'DELETE_SHOP_PRODUCT', payload: id});
+  const updateShopProductBrand = (spb: ShopProductBrand) => {
+    dispatch({type: 'UPDATE_SHOP_PRODUCT_BRAND', payload: spb});
+  };
+
+  const deleteShopProductBrand = (id: string) => {
+    dispatch({type: 'DELETE_SHOP_PRODUCT_BRAND', payload: id});
+  };
+
+  const deleteShopProductBrandsForProduct = (productId: string) => {
+    dispatch({type: 'DELETE_SHOP_PRODUCT_BRANDS_FOR_PRODUCT', payload: productId});
   };
 
   // Settings
@@ -296,33 +325,59 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
     dispatch({type: 'UPDATE_SETTINGS', payload: settings});
   };
 
-  // Helper: Get all products available at a shop with their prices
+  // Helper: Get all products available at a shop with their brand/price options
   const getProductsForShop = (shopId: string) => {
-    return state.shopProducts
-      .filter(sp => sp.shopId === shopId)
-      .map(sp => {
-        const product = state.products.find(p => p.id === sp.productId);
-        return product ? {product, shopProduct: sp} : null;
+    const productIds = [...new Set(
+      state.shopProductBrands
+        .filter(spb => spb.shopId === shopId)
+        .map(spb => spb.productId)
+    )];
+    
+    return productIds
+      .map(productId => {
+        const product = state.products.find(p => p.id === productId);
+        const brands = state.shopProductBrands.filter(
+          spb => spb.productId === productId && spb.shopId === shopId
+        );
+        return product ? {product, brands} : null;
       })
-      .filter((item): item is {product: Product; shopProduct: ShopProduct} => item !== null);
+      .filter((item): item is {product: Product; brands: ShopProductBrand[]} => item !== null);
   };
 
-  // Helper: Get all shops that carry a product with their prices
-  const getShopsForProduct = (productId: string) => {
-    return state.shopProducts
-      .filter(sp => sp.productId === productId)
-      .map(sp => {
-        const shop = state.shops.find(s => s.id === sp.shopId);
-        return shop ? {shop, shopProduct: sp} : null;
-      })
-      .filter((item): item is {shop: Shop; shopProduct: ShopProduct} => item !== null);
-  };
-
-  // Helper: Get specific shop-product relationship
-  const getShopProduct = (productId: string, shopId: string) => {
-    return state.shopProducts.find(
-      sp => sp.productId === productId && sp.shopId === shopId,
+  // Helper: Get all brands/prices for a product at a specific shop
+  const getBrandsForProductAtShop = (productId: string, shopId: string) => {
+    return state.shopProductBrands.filter(
+      spb => spb.productId === productId && spb.shopId === shopId
     );
+  };
+
+  // Helper: Get all shops that carry a product with their brand/price options
+  const getShopsForProduct = (productId: string) => {
+    const shopIds = [...new Set(
+      state.shopProductBrands
+        .filter(spb => spb.productId === productId)
+        .map(spb => spb.shopId)
+    )];
+    
+    return shopIds
+      .map(shopId => {
+        const shop = state.shops.find(s => s.id === shopId);
+        const brands = state.shopProductBrands.filter(
+          spb => spb.productId === productId && spb.shopId === shopId
+        );
+        return shop ? {shop, brands} : null;
+      })
+      .filter((item): item is {shop: Shop; brands: ShopProductBrand[]} => item !== null);
+  };
+
+  // Helper: Get products that need to be bought (shopping list)
+  const getShoppingList = () => {
+    return state.products.filter(p => !p.isAvailable);
+  };
+
+  // Helper: Get products that are available (we have them)
+  const getAvailableProducts = () => {
+    return state.products.filter(p => p.isAvailable);
   };
 
   return (
@@ -342,13 +397,17 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
         addProduct,
         updateProduct,
         deleteProduct,
-        addShopProduct,
-        updateShopProduct,
-        deleteShopProduct,
+        toggleProductAvailability,
+        addShopProductBrand,
+        updateShopProductBrand,
+        deleteShopProductBrand,
+        deleteShopProductBrandsForProduct,
         updateSettings,
         getProductsForShop,
+        getBrandsForProductAtShop,
         getShopsForProduct,
-        getShopProduct,
+        getShoppingList,
+        getAvailableProducts,
       }}>
       {children}
     </AppContext.Provider>

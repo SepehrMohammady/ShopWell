@@ -1,5 +1,6 @@
 /**
  * Add/Edit Product Screen
+ * Supports multiple brands with different prices at each shop
  */
 
 import React, {useState, useEffect} from 'react';
@@ -21,7 +22,7 @@ import Card from '../components/common/Card';
 import {
   RootStackParamList,
   Product,
-  ShopProduct,
+  ShopProductBrand,
   ProductCategory,
   ProductCategoryInfo,
 } from '../types';
@@ -32,10 +33,27 @@ import {formatPrice} from '../utils/priceHelper';
 type NavigationProp = StackNavigationProp<RootStackParamList, 'AddEditProduct'>;
 type RouteType = RouteProp<RootStackParamList, 'AddEditProduct'>;
 
+interface BrandPriceEntry {
+  id: string;
+  shopId: string;
+  brand: string;
+  price: string;
+  existingId?: string; // ID of existing ShopProductBrand if editing
+}
+
 export const AddEditProductScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteType>();
-  const {state, addProduct, updateProduct, deleteProduct, addShopProduct, updateShopProduct, deleteShopProduct} = useApp();
+  const {
+    state,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    addShopProductBrand,
+    updateShopProductBrand,
+    deleteShopProductBrand,
+    deleteShopProductBrandsForProduct,
+  } = useApp();
   const {colors} = useTheme();
 
   const productId = route.params?.productId;
@@ -49,33 +67,58 @@ export const AddEditProductScreen: React.FC = () => {
   const [category, setCategory] = useState<ProductCategory>(
     existingProduct?.category || 'other',
   );
-  const [defaultUnit, setDefaultUnit] = useState(existingProduct?.defaultUnit || '');
+  const [isAvailable, setIsAvailable] = useState(existingProduct?.isAvailable ?? false);
   const [notes, setNotes] = useState(existingProduct?.notes || '');
 
-  // Shop prices
-  const [shopPrices, setShopPrices] = useState<
-    Array<{shopId: string; price: string; shopProductId?: string}>
-  >([]);
+  // Brand prices - each entry is a shop+brand+price combination
+  const [brandPrices, setBrandPrices] = useState<BrandPriceEntry[]>([]);
 
-  // Load existing prices when editing
+  // Load existing brand prices when editing
   useEffect(() => {
     if (isEditing && productId) {
-      const existingPrices = state.shopProducts
-        .filter(sp => sp.productId === productId)
-        .map(sp => ({
-          shopId: sp.shopId,
-          price: sp.price.toString(),
-          shopProductId: sp.id,
+      const existingPrices = state.shopProductBrands
+        .filter(spb => spb.productId === productId)
+        .map(spb => ({
+          id: generateId(),
+          shopId: spb.shopId,
+          brand: spb.brand,
+          price: spb.price.toString(),
+          existingId: spb.id,
         }));
-      setShopPrices(existingPrices);
+      setBrandPrices(existingPrices);
     }
-  }, [isEditing, productId, state.shopProducts]);
+  }, [isEditing, productId, state.shopProductBrands]);
 
   useEffect(() => {
     navigation.setOptions({
       title: isEditing ? 'Edit Product' : 'Add Product',
     });
   }, [navigation, isEditing]);
+
+  const handleAddBrandPrice = () => {
+    if (state.shops.length === 0) {
+      Alert.alert('No Shops', 'Please add a shop first before adding prices.');
+      return;
+    }
+    setBrandPrices([
+      ...brandPrices,
+      {id: generateId(), shopId: state.shops[0].id, brand: '', price: ''},
+    ]);
+  };
+
+  const handleRemoveBrandPrice = (id: string) => {
+    setBrandPrices(brandPrices.filter(bp => bp.id !== id));
+  };
+
+  const handleUpdateBrandPrice = (
+    id: string,
+    field: 'shopId' | 'brand' | 'price',
+    value: string,
+  ) => {
+    setBrandPrices(
+      brandPrices.map(bp => (bp.id === id ? {...bp, [field]: value} : bp)),
+    );
+  };
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -84,11 +127,13 @@ export const AddEditProductScreen: React.FC = () => {
     }
 
     const now = new Date().toISOString();
+    const finalProductId = productId || generateId();
+
     const product: Product = {
-      id: productId || generateId(),
+      id: finalProductId,
       name: name.trim(),
       category,
-      defaultUnit: defaultUnit.trim() || undefined,
+      isAvailable,
       notes: notes.trim() || undefined,
       createdAt: existingProduct?.createdAt || now,
       updatedAt: now,
@@ -100,38 +145,40 @@ export const AddEditProductScreen: React.FC = () => {
       addProduct(product);
     }
 
-    // Save shop prices
-    const currentShopProductIds = state.shopProducts
-      .filter(sp => sp.productId === product.id)
-      .map(sp => sp.id);
+    // Track which existing brand prices to keep
+    const existingIds = state.shopProductBrands
+      .filter(spb => spb.productId === finalProductId)
+      .map(spb => spb.id);
 
-    shopPrices.forEach(sp => {
-      const price = parseFloat(sp.price);
-      if (!isNaN(price) && price > 0) {
-        const shopProduct: ShopProduct = {
-          id: sp.shopProductId || generateId(),
-          productId: product.id,
-          shopId: sp.shopId,
+    const processedExistingIds: string[] = [];
+
+    // Save brand prices
+    brandPrices.forEach(bp => {
+      const price = parseFloat(bp.price);
+      if (!isNaN(price) && price > 0 && bp.brand.trim()) {
+        const shopProductBrand: ShopProductBrand = {
+          id: bp.existingId || generateId(),
+          productId: finalProductId,
+          shopId: bp.shopId,
+          brand: bp.brand.trim(),
           price,
           currency: state.settings.currency,
           lastUpdated: now,
         };
 
-        if (sp.shopProductId) {
-          updateShopProduct(shopProduct);
+        if (bp.existingId) {
+          updateShopProductBrand(shopProductBrand);
+          processedExistingIds.push(bp.existingId);
         } else {
-          addShopProduct(shopProduct);
+          addShopProductBrand(shopProductBrand);
         }
       }
     });
 
-    // Remove deleted prices
-    const newShopProductIds = shopPrices
-      .filter(sp => sp.shopProductId)
-      .map(sp => sp.shopProductId!);
-    currentShopProductIds.forEach(id => {
-      if (!newShopProductIds.includes(id)) {
-        deleteShopProduct(id);
+    // Delete brand prices that were removed
+    existingIds.forEach(id => {
+      if (!processedExistingIds.includes(id)) {
+        deleteShopProductBrand(id);
       }
     });
 
@@ -158,166 +205,242 @@ export const AddEditProductScreen: React.FC = () => {
     );
   };
 
-  const addShopPrice = (shopId: string) => {
-    if (!shopPrices.find(sp => sp.shopId === shopId)) {
-      setShopPrices([...shopPrices, {shopId, price: ''}]);
-    }
-  };
+  const categories: ProductCategory[] = [
+    'personalCare',
+    'healthWellness',
+    'household',
+    'beverages',
+    'food',
+    'other',
+  ];
 
-  const updateShopPrice = (shopId: string, price: string) => {
-    setShopPrices(
-      shopPrices.map(sp => (sp.shopId === shopId ? {...sp, price} : sp)),
-    );
-  };
-
-  const removeShopPrice = (shopId: string) => {
-    setShopPrices(shopPrices.filter(sp => sp.shopId !== shopId));
-  };
-
-  const categories = Object.entries(ProductCategoryInfo) as Array<
-    [ProductCategory, {label: string; icon: string; color: string}]
-  >;
-
-  const availableShops = state.shops.filter(
-    shop => !shopPrices.find(sp => sp.shopId === shop.id),
-  );
-
-  return (
-    <ScrollView
-      style={[styles.container, {backgroundColor: colors.background}]}
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled">
-      {/* Basic Info */}
-      <Text style={[styles.sectionTitle, {color: colors.text}]}>
-        Product Info
-      </Text>
-
-      <Input
-        label="Product Name"
-        placeholder="e.g., Whole Wheat Bread"
-        value={name}
-        onChangeText={setName}
-      />
-
-      <Text style={[styles.label, {color: colors.text}]}>Category</Text>
-      <View style={styles.categoryGrid}>
-        {categories.map(([key, info]) => (
+  const renderCategorySelector = () => (
+    <View style={styles.categoryGrid}>
+      {categories.map(cat => {
+        const info = ProductCategoryInfo[cat];
+        const isSelected = category === cat;
+        return (
           <TouchableOpacity
-            key={key}
+            key={cat}
             style={[
-              styles.categoryItem,
+              styles.categoryOption,
               {
-                backgroundColor:
-                  category === key ? info.color + '30' : colors.surface,
-                borderColor: category === key ? info.color : colors.border,
+                backgroundColor: isSelected ? info.color : colors.surface,
+                borderColor: isSelected ? info.color : colors.border,
               },
             ]}
-            onPress={() => setCategory(key)}>
-            <Text style={styles.categoryIcon}>{info.icon}</Text>
+            onPress={() => setCategory(cat)}>
+            <Text style={styles.categoryOptionIcon}>{info.icon}</Text>
             <Text
               style={[
-                styles.categoryLabel,
-                {color: category === key ? info.color : colors.text},
+                styles.categoryOptionLabel,
+                {color: isSelected ? colors.white : colors.text},
               ]}>
               {info.label}
             </Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        );
+      })}
+    </View>
+  );
 
-      <Input
-        label="Default Unit (optional)"
-        placeholder="e.g., kg, pcs, bottle"
-        value={defaultUnit}
-        onChangeText={setDefaultUnit}
-      />
+  const renderBrandPriceEntry = (entry: BrandPriceEntry, index: number) => {
+    const shop = state.shops.find(s => s.id === entry.shopId);
 
-      <Input
-        label="Notes (optional)"
-        placeholder="Any additional notes..."
-        value={notes}
-        onChangeText={setNotes}
-        multiline
-        numberOfLines={3}
-      />
+    return (
+      <Card key={entry.id}>
+        <View style={styles.brandPriceEntry}>
+          <View style={styles.brandPriceHeader}>
+            <Text style={[styles.brandPriceTitle, {color: colors.text}]}>
+              Option {index + 1}
+            </Text>
+            <TouchableOpacity
+              onPress={() => handleRemoveBrandPrice(entry.id)}
+              style={styles.removeButton}>
+              <Text style={[styles.removeButtonText, {color: colors.error}]}>
+                ✕ Remove
+              </Text>
+            </TouchableOpacity>
+          </View>
 
-      {/* Shop Prices */}
-      <Text style={[styles.sectionTitle, {color: colors.text, marginTop: Spacing.lg}]}>
-        Prices at Shops
-      </Text>
-      <Text style={[styles.sectionDescription, {color: colors.textSecondary}]}>
-        Add prices for this product at different shops
-      </Text>
-
-      {shopPrices.length === 0 ? (
-        <Card>
-          <Text style={[styles.noPricesText, {color: colors.textLight}]}>
-            No prices added yet. Select a shop below to add a price.
+          {/* Shop selector */}
+          <Text style={[styles.fieldLabel, {color: colors.textSecondary}]}>
+            Shop
           </Text>
-        </Card>
-      ) : (
-        shopPrices.map(sp => {
-          const shop = state.shops.find(s => s.id === sp.shopId);
-          if (!shop) return null;
-
-          return (
-            <Card key={sp.shopId}>
-              <View style={styles.priceRow}>
-                <View style={styles.shopInfo}>
-                  <Text style={[styles.shopName, {color: colors.text}]}>
-                    {shop.name}
-                  </Text>
-                  <Text style={[styles.shopCategory, {color: colors.textSecondary}]}>
-                    {shop.category}
-                  </Text>
-                </View>
-                <View style={styles.priceInputContainer}>
-                  <Text style={[styles.currencySymbol, {color: colors.primary}]}>
-                    {state.settings.currency}
-                  </Text>
-                  <Input
-                    placeholder="0.00"
-                    value={sp.price}
-                    onChangeText={text => updateShopPrice(sp.shopId, text)}
-                    keyboardType="decimal-pad"
-                    style={styles.priceInput}
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.removeButton}
-                  onPress={() => removeShopPrice(sp.shopId)}>
-                  <Text style={{color: colors.error}}>✕</Text>
-                </TouchableOpacity>
-              </View>
-            </Card>
-          );
-        })
-      )}
-
-      {/* Add Shop Price */}
-      {availableShops.length > 0 && (
-        <>
-          <Text style={[styles.label, {color: colors.text, marginTop: Spacing.base}]}>
-            Add price at shop
-          </Text>
-          <View style={styles.shopList}>
-            {availableShops.map(shop => (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.shopSelector}>
+            {state.shops.map(s => (
               <TouchableOpacity
-                key={shop.id}
-                style={[styles.shopChip, {backgroundColor: colors.surface, borderColor: colors.border}]}
-                onPress={() => addShopPrice(shop.id)}>
-                <Text style={{color: colors.text}}>+ {shop.name}</Text>
+                key={s.id}
+                style={[
+                  styles.shopChip,
+                  {
+                    backgroundColor:
+                      entry.shopId === s.id ? colors.primary : colors.surface,
+                    borderColor:
+                      entry.shopId === s.id ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => handleUpdateBrandPrice(entry.id, 'shopId', s.id)}>
+                <Text
+                  style={[
+                    styles.shopChipText,
+                    {color: entry.shopId === s.id ? colors.white : colors.text},
+                  ]}>
+                  {s.name}
+                </Text>
               </TouchableOpacity>
             ))}
-          </View>
-        </>
-      )}
+          </ScrollView>
 
-      {state.shops.length === 0 && (
+          {/* Brand and Price in row */}
+          <View style={styles.brandPriceRow}>
+            <View style={styles.brandInput}>
+              <Input
+                label="Brand"
+                value={entry.brand}
+                onChangeText={v => handleUpdateBrandPrice(entry.id, 'brand', v)}
+                placeholder="e.g., Alpro, Oatly..."
+              />
+            </View>
+            <View style={styles.priceInput}>
+              <Input
+                label={`Price (${state.settings.currency})`}
+                value={entry.price}
+                onChangeText={v => handleUpdateBrandPrice(entry.id, 'price', v)}
+                placeholder="0.00"
+                keyboardType="decimal-pad"
+              />
+            </View>
+          </View>
+        </View>
+      </Card>
+    );
+  };
+
+  return (
+    <ScrollView
+      style={[styles.container, {backgroundColor: colors.background}]}
+      contentContainerStyle={styles.content}>
+      {/* Basic Info */}
+      <Input
+        label="Product Name"
+        value={name}
+        onChangeText={setName}
+        placeholder="e.g., Milk, Shampoo, Bread..."
+      />
+
+      {/* Category */}
+      <Text style={[styles.sectionTitle, {color: colors.text}]}>Category</Text>
+      {renderCategorySelector()}
+
+      {/* Availability Toggle */}
+      <View style={styles.availabilitySection}>
+        <Text style={[styles.sectionTitle, {color: colors.text}]}>
+          Availability
+        </Text>
+        <View style={styles.availabilityRow}>
+          <TouchableOpacity
+            style={[
+              styles.availabilityOption,
+              {
+                backgroundColor: !isAvailable ? colors.primary : colors.surface,
+                borderColor: !isAvailable ? colors.primary : colors.border,
+              },
+            ]}
+            onPress={() => setIsAvailable(false)}>
+            <Text style={styles.availabilityIcon}>🛒</Text>
+            <Text
+              style={[
+                styles.availabilityLabel,
+                {color: !isAvailable ? colors.white : colors.text},
+              ]}>
+              Need to Buy
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.availabilityOption,
+              {
+                backgroundColor: isAvailable ? colors.success : colors.surface,
+                borderColor: isAvailable ? colors.success : colors.border,
+              },
+            ]}
+            onPress={() => setIsAvailable(true)}>
+            <Text style={styles.availabilityIcon}>✓</Text>
+            <Text
+              style={[
+                styles.availabilityLabel,
+                {color: isAvailable ? colors.white : colors.text},
+              ]}>
+              Available
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Notes */}
+      <Input
+        label="Notes (optional)"
+        value={notes}
+        onChangeText={setNotes}
+        placeholder="Any additional notes..."
+        multiline
+      />
+
+      {/* Brand Prices Section */}
+      <Text style={[styles.sectionTitle, {color: colors.text, marginTop: Spacing.lg}]}>
+        Prices by Shop & Brand
+      </Text>
+      <Text style={[styles.sectionSubtitle, {color: colors.textSecondary}]}>
+        Add different brands and their prices at various shops
+      </Text>
+
+      {brandPrices.map((entry, index) => renderBrandPriceEntry(entry, index))}
+
+      <TouchableOpacity
+        style={[styles.addBrandButton, {borderColor: colors.primary}]}
+        onPress={handleAddBrandPrice}>
+        <Text style={[styles.addBrandButtonText, {color: colors.primary}]}>
+          + Add Brand/Price
+        </Text>
+      </TouchableOpacity>
+
+      {/* Summary */}
+      {brandPrices.length > 0 && (
         <Card>
-          <Text style={[styles.noPricesText, {color: colors.textLight}]}>
-            Add shops first to track prices. Go to the Shops tab to add your favorite stores.
+          <Text style={[styles.summaryTitle, {color: colors.text}]}>
+            Summary
           </Text>
+          {(() => {
+            const validEntries = brandPrices.filter(
+              bp => bp.brand.trim() && parseFloat(bp.price) > 0,
+            );
+            const shopGroups = validEntries.reduce((acc, bp) => {
+              const shop = state.shops.find(s => s.id === bp.shopId);
+              const shopName = shop?.name || 'Unknown';
+              if (!acc[shopName]) acc[shopName] = [];
+              acc[shopName].push(bp);
+              return acc;
+            }, {} as Record<string, BrandPriceEntry[]>);
+
+            return Object.entries(shopGroups).map(([shopName, entries]) => (
+              <View key={shopName} style={styles.summaryShop}>
+                <Text style={[styles.summaryShopName, {color: colors.text}]}>
+                  📍 {shopName}
+                </Text>
+                {entries.map(e => (
+                  <Text
+                    key={e.id}
+                    style={[styles.summaryBrand, {color: colors.textSecondary}]}>
+                    • {e.brand}: {formatPrice(parseFloat(e.price), state.settings.currency)}
+                  </Text>
+                ))}
+              </View>
+            ));
+          })()}
         </Card>
       )}
 
@@ -347,91 +470,138 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: Spacing.sm,
-  },
-  sectionDescription: {
-    fontSize: 14,
-    marginBottom: Spacing.base,
-  },
-  label: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '600',
+    marginTop: Spacing.base,
     marginBottom: Spacing.sm,
+  },
+  sectionSubtitle: {
+    fontSize: 13,
+    marginBottom: Spacing.base,
   },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    gap: Spacing.sm,
     marginBottom: Spacing.base,
-    marginHorizontal: -Spacing.xs,
   },
-  categoryItem: {
+  categoryOption: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.sm,
-    margin: Spacing.xs,
     borderRadius: 20,
     borderWidth: 1,
   },
-  categoryIcon: {
+  categoryOptionIcon: {
     fontSize: 16,
     marginRight: Spacing.xs,
   },
-  categoryLabel: {
+  categoryOptionLabel: {
     fontSize: 13,
     fontWeight: '500',
   },
-  priceRow: {
+  availabilitySection: {
+    marginBottom: Spacing.base,
+  },
+  availabilityRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  availabilityOption: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.base,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: Spacing.xs,
   },
-  shopInfo: {
-    flex: 1,
+  availabilityIcon: {
+    fontSize: 18,
   },
-  shopName: {
-    fontSize: 16,
+  availabilityLabel: {
+    fontSize: 14,
     fontWeight: '600',
   },
-  shopCategory: {
-    fontSize: 12,
+  brandPriceEntry: {
+    marginBottom: Spacing.sm,
   },
-  priceInputContainer: {
+  brandPriceHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    width: 100,
+    marginBottom: Spacing.sm,
   },
-  currencySymbol: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginRight: 4,
-  },
-  priceInput: {
-    flex: 1,
-    textAlign: 'right',
+  brandPriceTitle: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   removeButton: {
-    padding: Spacing.sm,
-    marginLeft: Spacing.sm,
+    padding: Spacing.xs,
   },
-  noPricesText: {
-    fontSize: 14,
-    textAlign: 'center',
-    fontStyle: 'italic',
+  removeButtonText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
-  shopList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: Spacing.base,
+  fieldLabel: {
+    fontSize: 12,
+    marginBottom: Spacing.xs,
+  },
+  shopSelector: {
+    marginBottom: Spacing.sm,
   },
   shopChip: {
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.sm,
-    borderRadius: 20,
+    borderRadius: 16,
     borderWidth: 1,
     marginRight: Spacing.sm,
+  },
+  shopChipText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  brandPriceRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  brandInput: {
+    flex: 2,
+  },
+  priceInput: {
+    flex: 1,
+  },
+  addBrandButton: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    paddingVertical: Spacing.base,
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  addBrandButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  summaryTitle: {
+    fontSize: 14,
+    fontWeight: '600',
     marginBottom: Spacing.sm,
+  },
+  summaryShop: {
+    marginBottom: Spacing.sm,
+  },
+  summaryShopName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  summaryBrand: {
+    fontSize: 12,
+    marginLeft: Spacing.base,
+    marginTop: 2,
   },
   actions: {
     marginTop: Spacing.lg,

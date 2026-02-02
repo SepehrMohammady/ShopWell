@@ -1,5 +1,6 @@
 /**
  * Shop Mode Screen - Shopping at a specific shop with price comparisons
+ * Shows all products available at this shop with their brands and prices
  */
 
 import React, {useState, useMemo} from 'react';
@@ -20,21 +21,33 @@ import {
   RootStackParamList,
   ProductCategoryInfo,
   ProductCategory,
+  Product,
+  ShopProductBrand,
 } from '../types';
 import {Spacing} from '../constants';
 import {
   formatPrice,
-  getPriceComparison,
   getCheaperAlternatives,
+  getCheapestBrandAtShop,
+  getCheapestOption,
 } from '../utils/priceHelper';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'ShopMode'>;
 type RouteType = RouteProp<RootStackParamList, 'ShopMode'>;
 
+interface ProductWithBrands {
+  product: Product;
+  brands: ShopProductBrand[];
+  cheapestHere: number;
+  cheapestAnywhere: number;
+  hasBetterPrice: boolean;
+  savings: number;
+}
+
 export const ShopModeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteType>();
-  const {state, getProductsForShop} = useApp();
+  const {state, getProductsForShop, toggleProductAvailability} = useApp();
   const {colors} = useTheme();
 
   const shopId = route.params.shopId;
@@ -43,13 +56,30 @@ export const ShopModeScreen: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
 
-  const productsAtShop = useMemo(() => {
-    return getProductsForShop(shopId);
-  }, [shopId, getProductsForShop]);
+  const productsAtShop = useMemo((): ProductWithBrands[] => {
+    const rawProducts = getProductsForShop(shopId);
+    
+    return rawProducts.map(({product, brands}) => {
+      const cheapestHere = Math.min(...brands.map(b => b.price));
+      const cheapestAnywhereOption = getCheapestOption(product.id, state.shopProductBrands, state.shops);
+      const cheapestAnywhere = cheapestAnywhereOption?.price || cheapestHere;
+      const hasBetterPrice = cheapestAnywhere < cheapestHere;
+      const savings = cheapestHere - cheapestAnywhere;
+      
+      return {
+        product,
+        brands,
+        cheapestHere,
+        cheapestAnywhere,
+        hasBetterPrice,
+        savings,
+      };
+    });
+  }, [shopId, getProductsForShop, state.shopProductBrands, state.shops]);
 
   const cheaperAlternatives = useMemo(() => {
-    return getCheaperAlternatives(shopId, state.shopProducts, state.shops, state.products);
-  }, [shopId, state.shopProducts, state.shops, state.products]);
+    return getCheaperAlternatives(shopId, state.shopProductBrands, state.shops, state.products);
+  }, [shopId, state.shopProductBrands, state.shops, state.products]);
 
   const filteredProducts = useMemo(() => {
     let products = productsAtShop;
@@ -59,30 +89,28 @@ export const ShopModeScreen: React.FC = () => {
       products = products.filter(p => p.product.category === selectedCategory);
     }
 
-    // Filter to show only items cheaper elsewhere
+    // Filter by warnings only
     if (showWarningsOnly) {
-      const cheaperIds = cheaperAlternatives.map(ca => ca.product.id);
-      products = products.filter(p => cheaperIds.includes(p.product.id));
+      products = products.filter(p => p.hasBetterPrice);
     }
 
-    return products.sort((a, b) => a.product.name.localeCompare(b.product.name));
-  }, [productsAtShop, selectedCategory, showWarningsOnly, cheaperAlternatives]);
+    // Sort: warnings first, then by name
+    return products.sort((a, b) => {
+      if (a.hasBetterPrice && !b.hasBetterPrice) return -1;
+      if (!a.hasBetterPrice && b.hasBetterPrice) return 1;
+      return a.product.name.localeCompare(b.product.name);
+    });
+  }, [productsAtShop, selectedCategory, showWarningsOnly]);
 
   const categories: Array<ProductCategory | 'all'> = [
     'all',
-    'food',
-    'healthBeauty',
+    'personalCare',
+    'healthWellness',
     'household',
-    'electronics',
-    'clothing',
+    'beverages',
+    'food',
     'other',
   ];
-
-  // Filter to only categories that have products at this shop
-  const availableCategories = categories.filter(cat => {
-    if (cat === 'all') return true;
-    return productsAtShop.some(p => p.product.category === cat);
-  });
 
   if (!shop) {
     return (
@@ -92,21 +120,61 @@ export const ShopModeScreen: React.FC = () => {
     );
   }
 
+  const renderHeader = () => (
+    <View style={[styles.header, {backgroundColor: colors.primary}]}>
+      <Text style={styles.shopEmoji}>🛒</Text>
+      <View style={styles.headerInfo}>
+        <Text style={styles.shoppingAt}>Shopping at</Text>
+        <Text style={styles.shopName}>{shop.name}</Text>
+      </View>
+      <View style={styles.statsContainer}>
+        <Text style={styles.statValue}>{productsAtShop.length}</Text>
+        <Text style={styles.statLabel}>Products</Text>
+      </View>
+    </View>
+  );
+
+  const renderWarningBanner = () => {
+    if (cheaperAlternatives.length === 0) {
+      return (
+        <View style={[styles.successBanner, {backgroundColor: colors.success + '20'}]}>
+          <Text style={styles.successIcon}>✓</Text>
+          <Text style={[styles.successText, {color: colors.success}]}>
+            All products here have the best prices!
+          </Text>
+        </View>
+      );
+    }
+
+    const totalSavings = cheaperAlternatives.reduce((sum, alt) => sum + alt.savings, 0);
+    
+    return (
+      <TouchableOpacity
+        style={[styles.warningBanner, {backgroundColor: colors.warning + '20'}]}
+        onPress={() => setShowWarningsOnly(!showWarningsOnly)}>
+        <Text style={styles.warningIcon}>⚠️</Text>
+        <View style={styles.warningInfo}>
+          <Text style={[styles.warningText, {color: colors.warning}]}>
+            {cheaperAlternatives.length} product{cheaperAlternatives.length !== 1 ? 's' : ''} cheaper elsewhere
+          </Text>
+          <Text style={[styles.warningSubtext, {color: colors.textSecondary}]}>
+            Could save {formatPrice(totalSavings, state.settings.currency)} • Tap to {showWarningsOnly ? 'show all' : 'filter'}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
   const renderCategoryFilter = () => (
     <View style={styles.categoryContainer}>
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
-        data={availableCategories}
+        data={categories}
         keyExtractor={item => item}
         renderItem={({item}) => {
           const isSelected = item === selectedCategory;
           const categoryInfo = item === 'all' ? null : ProductCategoryInfo[item];
-          const count =
-            item === 'all'
-              ? productsAtShop.length
-              : productsAtShop.filter(p => p.product.category === item).length;
-
           return (
             <TouchableOpacity
               style={[
@@ -125,7 +193,7 @@ export const ShopModeScreen: React.FC = () => {
                   styles.categoryLabel,
                   {color: isSelected ? colors.white : colors.text},
                 ]}>
-                {item === 'all' ? 'All' : categoryInfo?.label} ({count})
+                {item === 'all' ? 'All' : categoryInfo?.label}
               </Text>
             </TouchableOpacity>
           );
@@ -134,110 +202,109 @@ export const ShopModeScreen: React.FC = () => {
     </View>
   );
 
-  const renderProduct = ({item}: {item: typeof productsAtShop[0]}) => {
-    const {product, shopProduct} = item;
-    const categoryInfo = ProductCategoryInfo[product.category];
-    const comparison = getPriceComparison(
-      product.id,
-      shopId,
-      state.shopProducts,
-      state.shops,
-    );
-
-    const hasCheaperOption = comparison && !comparison.isCheapest;
+  const renderProduct = ({item}: {item: ProductWithBrands}) => {
+    const categoryInfo = ProductCategoryInfo[item.product.category];
+    const cheaperAlt = item.hasBetterPrice
+      ? cheaperAlternatives.find(alt => alt.product.id === item.product.id)
+      : null;
 
     return (
-      <Card onPress={() => navigation.navigate('ProductDetail', {productId: product.id})}>
-        <View style={styles.productCard}>
-          {/* Warning indicator */}
-          {hasCheaperOption && (
-            <View style={[styles.warningBadge, {backgroundColor: colors.warning + '20'}]}>
-              <Text style={styles.warningIcon}>⚠️</Text>
-            </View>
-          )}
-
-          <View
-            style={[
-              styles.categoryBadge,
-              {backgroundColor: categoryInfo.color + '20'},
-            ]}>
-            <Text style={styles.categoryBadgeIcon}>{categoryInfo.icon}</Text>
+      <Card onPress={() => navigation.navigate('ProductDetail', {productId: item.product.id})}>
+        {/* Warning banner if cheaper elsewhere */}
+        {item.hasBetterPrice && cheaperAlt && (
+          <View style={[styles.cheaperBanner, {backgroundColor: colors.warning + '15'}]}>
+            <Text style={[styles.cheaperText, {color: colors.warning}]}>
+              💡 Save {formatPrice(item.savings, state.settings.currency)} at {cheaperAlt.cheapestShop.name} ({cheaperAlt.cheapestBrand.brand})
+            </Text>
           </View>
+        )}
+
+        <View style={styles.productCard}>
+          {/* Availability toggle */}
+          <TouchableOpacity
+            style={[
+              styles.availabilityToggle,
+              {
+                backgroundColor: item.product.isAvailable ? colors.success : colors.border,
+                borderColor: item.product.isAvailable ? colors.success : colors.border,
+              },
+            ]}
+            onPress={() => toggleProductAvailability(item.product.id)}>
+            <Text style={styles.availabilityIcon}>
+              {item.product.isAvailable ? '✓' : ''}
+            </Text>
+          </TouchableOpacity>
 
           <View style={styles.productInfo}>
             <Text style={[styles.productName, {color: colors.text}]}>
-              {product.name}
+              {item.product.name}
             </Text>
-            {product.defaultUnit && (
-              <Text style={[styles.productUnit, {color: colors.textSecondary}]}>
-                {product.defaultUnit}
+            <View style={styles.productMeta}>
+              <View
+                style={[
+                  styles.categoryTag,
+                  {backgroundColor: categoryInfo.color + '20'},
+                ]}>
+                <Text style={[styles.categoryTagText, {color: categoryInfo.color}]}>
+                  {categoryInfo.icon} {categoryInfo.label}
+                </Text>
+              </View>
+              {!item.product.isAvailable && (
+                <Text style={[styles.onListBadge, {color: colors.primary}]}>
+                  🛒 On list
+                </Text>
+              )}
+            </View>
+          </View>
+
+          <View style={styles.priceInfo}>
+            <Text style={[styles.priceLabel, {color: colors.textSecondary}]}>
+              from
+            </Text>
+            <Text
+              style={[
+                styles.priceValue,
+                {color: item.hasBetterPrice ? colors.warning : colors.success},
+              ]}>
+              {formatPrice(item.cheapestHere, state.settings.currency)}
+            </Text>
+            <Text style={[styles.brandCount, {color: colors.textLight}]}>
+              {item.brands.length} option{item.brands.length !== 1 ? 's' : ''}
+            </Text>
+          </View>
+        </View>
+
+        {/* Brand list */}
+        {item.brands.length > 1 && (
+          <View style={[styles.brandList, {borderTopColor: colors.border}]}>
+            {item.brands.slice(0, 3).map((brand, index) => (
+              <View key={brand.id} style={styles.brandRow}>
+                <Text style={[styles.brandName, {color: colors.textSecondary}]}>
+                  {brand.brand}
+                </Text>
+                <Text style={[styles.brandPrice, {color: colors.text}]}>
+                  {formatPrice(brand.price, state.settings.currency)}
+                </Text>
+              </View>
+            ))}
+            {item.brands.length > 3 && (
+              <Text style={[styles.moreOptions, {color: colors.textLight}]}>
+                +{item.brands.length - 3} more option{item.brands.length - 3 !== 1 ? 's' : ''}
               </Text>
             )}
           </View>
-
-          <View style={styles.priceSection}>
-            <Text style={[styles.price, {color: colors.text}]}>
-              {formatPrice(shopProduct.price, state.settings.currency)}
-            </Text>
-            {hasCheaperOption && comparison && (
-              <View style={styles.savingsInfo}>
-                <Text style={[styles.cheaperAt, {color: colors.warning}]}>
-                  Cheaper at {comparison.cheapestShopName}
-                </Text>
-                <Text style={[styles.savingsAmount, {color: colors.success}]}>
-                  Save {formatPrice(comparison.savings, state.settings.currency)}
-                </Text>
-              </View>
-            )}
-            {comparison?.isCheapest && (
-              <View style={[styles.bestPriceBadge, {backgroundColor: colors.success + '20'}]}>
-                <Text style={[styles.bestPriceText, {color: colors.success}]}>
-                  Best price
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
+        )}
       </Card>
     );
   };
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
-      {/* Shop Header */}
-      <View style={[styles.header, {backgroundColor: colors.primary}]}>
-        <Text style={styles.shopEmoji}>🛒</Text>
-        <View style={styles.headerInfo}>
-          <Text style={styles.shoppingAt}>Shopping at</Text>
-          <Text style={styles.shopName}>{shop.name}</Text>
-        </View>
-        <View style={styles.statsContainer}>
-          <Text style={styles.statValue}>{productsAtShop.length}</Text>
-          <Text style={styles.statLabel}>Products</Text>
-        </View>
-      </View>
+      {/* Header */}
+      {renderHeader()}
 
-      {/* Warnings Summary */}
-      {cheaperAlternatives.length > 0 && (
-        <TouchableOpacity
-          style={[
-            styles.warningBanner,
-            {
-              backgroundColor: showWarningsOnly ? colors.warning : colors.warning + '20',
-            },
-          ]}
-          onPress={() => setShowWarningsOnly(!showWarningsOnly)}>
-          <Text
-            style={[
-              styles.warningText,
-              {color: showWarningsOnly ? colors.white : colors.warning},
-            ]}>
-            ⚠️ {cheaperAlternatives.length} item
-            {cheaperAlternatives.length !== 1 ? 's' : ''} cheaper elsewhere
-            {showWarningsOnly ? ' (tap to show all)' : ' (tap to filter)'}
-          </Text>
-        </TouchableOpacity>
-      )}
+      {/* Warning/Success Banner */}
+      {renderWarningBanner()}
 
       {/* Category Filter */}
       {renderCategoryFilter()}
@@ -256,7 +323,7 @@ export const ShopModeScreen: React.FC = () => {
       ) : (
         <FlatList
           data={filteredProducts}
-          keyExtractor={item => item.shopProduct.id}
+          keyExtractor={item => item.product.id}
           renderItem={renderProduct}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
@@ -314,10 +381,41 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
   },
   warningBanner: {
-    padding: Spacing.base,
+    flexDirection: 'row',
     alignItems: 'center',
+    padding: Spacing.base,
+    marginHorizontal: Spacing.base,
+    marginTop: Spacing.base,
+    borderRadius: 12,
+  },
+  warningIcon: {
+    fontSize: 20,
+    marginRight: Spacing.sm,
+  },
+  warningInfo: {
+    flex: 1,
   },
   warningText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  warningSubtext: {
+    fontSize: 12,
+    marginTop: 2,
+  },
+  successBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.base,
+    marginHorizontal: Spacing.base,
+    marginTop: Spacing.base,
+    borderRadius: 12,
+  },
+  successIcon: {
+    fontSize: 20,
+    marginRight: Spacing.sm,
+  },
+  successText: {
     fontSize: 14,
     fontWeight: '600',
   },
@@ -346,73 +444,94 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
     paddingTop: 0,
   },
+  cheaperBanner: {
+    padding: Spacing.sm,
+    marginBottom: Spacing.sm,
+    borderRadius: 8,
+  },
+  cheaperText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
   productCard: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  warningBadge: {
-    position: 'absolute',
-    top: -8,
-    left: -8,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  warningIcon: {
-    fontSize: 14,
-  },
-  categoryBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  availabilityToggle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.base,
   },
-  categoryBadgeIcon: {
-    fontSize: 22,
+  availabilityIcon: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
   productInfo: {
     flex: 1,
   },
   productName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
+    marginBottom: 4,
   },
-  productUnit: {
-    fontSize: 12,
-    marginTop: 2,
+  productMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
   },
-  priceSection: {
-    alignItems: 'flex-end',
+  categoryTag: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
   },
-  price: {
-    fontSize: 17,
-    fontWeight: '700',
-  },
-  savingsInfo: {
-    alignItems: 'flex-end',
-    marginTop: 4,
-  },
-  cheaperAt: {
+  categoryTagText: {
     fontSize: 11,
     fontWeight: '500',
   },
-  savingsAmount: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  bestPriceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
-    marginTop: 4,
-  },
-  bestPriceText: {
+  onListBadge: {
     fontSize: 11,
     fontWeight: '600',
+  },
+  priceInfo: {
+    alignItems: 'flex-end',
+  },
+  priceLabel: {
+    fontSize: 11,
+  },
+  priceValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  brandCount: {
+    fontSize: 11,
+    marginTop: 2,
+  },
+  brandList: {
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  brandName: {
+    fontSize: 13,
+  },
+  brandPrice: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  moreOptions: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginTop: 4,
   },
 });

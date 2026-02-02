@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.5] - 2026-02-02
+
+### Added
+- **Product Availability Tracking**: Products can now be marked as "Available" or "Need to Buy"
+  - Shopping List view shows products you need to buy
+  - Available view shows products you already have
+  - Toggle availability directly from product list or detail screen
+- **Multi-Brand Pricing**: Products can now have multiple brands with different prices at each shop
+  - Add unlimited brand/price combinations per shop
+  - See all brand options when viewing a product
+  - Compare prices across brands and shops
+- **Best Shop Recommendations**: When viewing shopping list, see the best shop to buy from
+  - Shows how many items available at each shop
+  - Displays estimated total cost
+  - Navigate directly to shop mode
+
+### Changed
+- **Updated Categories**: New product categories to better match shopping needs
+  - Personal Care (was Health & Beauty)
+  - Health & Wellness (new)
+  - Household
+  - Beverages (new)
+  - Food
+  - Other
+  - Removed: Electronics, Clothing
+- **Removed Default Unit**: Product unit field was removed as it was not useful
+- **Enhanced Price Display**: Shows price ranges and multiple brand options
+
+### Technical
+- Renamed ShopProduct to ShopProductBrand with new `brand` field
+- Added `isAvailable` boolean to Product interface
+- Updated AppContext with new helper functions for shopping list
+- New helper: getBestShopsForShoppingList for shop recommendations
+- Updated all screens to work with new brand-based pricing model
+
 ## [0.0.4] - 2026-02-02
 
 ### Added

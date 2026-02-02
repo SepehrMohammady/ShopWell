@@ -1,5 +1,6 @@
 /**
  * Product Detail Screen - View product with prices across shops
+ * Shows all brand options grouped by shop
  */
 
 import React from 'react';
@@ -19,7 +20,7 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import {RootStackParamList, ProductCategoryInfo} from '../types';
 import {Spacing} from '../constants';
-import {formatPrice, getAllPricesForProduct} from '../utils/priceHelper';
+import {formatPrice, getAllPricesForProduct, getPriceRange} from '../utils/priceHelper';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'ProductDetail'>;
 type RouteType = RouteProp<RootStackParamList, 'ProductDetail'>;
@@ -27,7 +28,7 @@ type RouteType = RouteProp<RootStackParamList, 'ProductDetail'>;
 export const ProductDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteType>();
-  const {state, deleteProduct} = useApp();
+  const {state, deleteProduct, toggleProductAvailability} = useApp();
   const {colors} = useTheme();
 
   const productId = route.params.productId;
@@ -42,8 +43,9 @@ export const ProductDetailScreen: React.FC = () => {
   }
 
   const categoryInfo = ProductCategoryInfo[product.category];
-  const allPrices = getAllPricesForProduct(productId, state.shopProducts, state.shops);
-  const cheapestPrice = allPrices.length > 0 ? allPrices[0].price : null;
+  const allPrices = getAllPricesForProduct(productId, state.shopProductBrands, state.shops);
+  const priceRange = getPriceRange(productId, state.shopProductBrands);
+  const totalBrands = state.shopProductBrands.filter(spb => spb.productId === productId).length;
 
   const handleEdit = () => {
     navigation.navigate('AddEditProduct', {productId});
@@ -67,11 +69,15 @@ export const ProductDetailScreen: React.FC = () => {
     );
   };
 
+  const handleToggleAvailability = () => {
+    toggleProductAvailability(productId);
+  };
+
   return (
     <ScrollView
       style={[styles.container, {backgroundColor: colors.background}]}
       contentContainerStyle={styles.content}>
-      {/* Product Header */}
+      {/* Header Card */}
       <Card>
         <View style={styles.header}>
           <View
@@ -88,13 +94,31 @@ export const ProductDetailScreen: React.FC = () => {
             <Text style={[styles.categoryLabel, {color: categoryInfo.color}]}>
               {categoryInfo.label}
             </Text>
-            {product.defaultUnit && (
-              <Text style={[styles.unit, {color: colors.textSecondary}]}>
-                Default unit: {product.defaultUnit}
-              </Text>
-            )}
           </View>
         </View>
+
+        {/* Availability Toggle */}
+        <TouchableOpacity
+          style={[
+            styles.availabilityBadge,
+            {
+              backgroundColor: product.isAvailable
+                ? colors.success + '20'
+                : colors.primary + '20',
+            },
+          ]}
+          onPress={handleToggleAvailability}>
+          <Text style={styles.availabilityIcon}>
+            {product.isAvailable ? '✓' : '🛒'}
+          </Text>
+          <Text
+            style={[
+              styles.availabilityText,
+              {color: product.isAvailable ? colors.success : colors.primary},
+            ]}>
+            {product.isAvailable ? 'Available - tap to add to shopping list' : 'On shopping list - tap when purchased'}
+          </Text>
+        </TouchableOpacity>
 
         {product.notes && (
           <View style={[styles.notesSection, {borderTopColor: colors.border}]}>
@@ -108,76 +132,118 @@ export const ProductDetailScreen: React.FC = () => {
         )}
       </Card>
 
-      {/* Price Comparison */}
+      {/* Price Overview */}
+      {priceRange && (
+        <Card>
+          <View style={styles.priceOverview}>
+            <View style={styles.priceOverviewItem}>
+              <Text style={[styles.priceOverviewLabel, {color: colors.textSecondary}]}>
+                Lowest
+              </Text>
+              <Text style={[styles.priceOverviewValue, {color: colors.success}]}>
+                {formatPrice(priceRange.min, state.settings.currency)}
+              </Text>
+            </View>
+            <View style={[styles.priceOverviewDivider, {backgroundColor: colors.border}]} />
+            <View style={styles.priceOverviewItem}>
+              <Text style={[styles.priceOverviewLabel, {color: colors.textSecondary}]}>
+                Highest
+              </Text>
+              <Text style={[styles.priceOverviewValue, {color: colors.error}]}>
+                {formatPrice(priceRange.max, state.settings.currency)}
+              </Text>
+            </View>
+            <View style={[styles.priceOverviewDivider, {backgroundColor: colors.border}]} />
+            <View style={styles.priceOverviewItem}>
+              <Text style={[styles.priceOverviewLabel, {color: colors.textSecondary}]}>
+                Options
+              </Text>
+              <Text style={[styles.priceOverviewValue, {color: colors.text}]}>
+                {totalBrands}
+              </Text>
+            </View>
+          </View>
+        </Card>
+      )}
+
+      {/* Prices by Shop */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, {color: colors.text}]}>
-          💰 Price Comparison
+          Prices by Shop
         </Text>
         <Text style={[styles.sectionSubtitle, {color: colors.textSecondary}]}>
-          {allPrices.length > 0
-            ? `Available at ${allPrices.length} shop${allPrices.length !== 1 ? 's' : ''}`
-            : 'No prices recorded yet'}
+          {allPrices.length} shop{allPrices.length !== 1 ? 's' : ''} carrying this product
         </Text>
       </View>
 
       {allPrices.length === 0 ? (
         <Card>
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>🏷️</Text>
+            <Text style={styles.emptyIcon}>💰</Text>
             <Text style={[styles.emptyTitle, {color: colors.text}]}>
               No prices yet
             </Text>
             <Text style={[styles.emptyDescription, {color: colors.textSecondary}]}>
-              Edit this product to add prices at different shops
+              Add price information to compare across shops
             </Text>
           </View>
         </Card>
       ) : (
-        allPrices.map((item, index) => {
-          const isCheapest = item.price === cheapestPrice;
-          const savings = cheapestPrice ? item.price - cheapestPrice : 0;
-
+        allPrices.map((shopData, shopIndex) => {
+          const isCheapestShop = shopIndex === 0;
+          
           return (
-            <Card
-              key={item.shopProduct.id}
-              onPress={() => navigation.navigate('ShopDetail', {shopId: item.shop.id})}>
-              <View style={styles.priceCard}>
-                <View style={styles.rankBadge}>
-                  <Text
-                    style={[
-                      styles.rankText,
-                      {color: isCheapest ? colors.success : colors.textSecondary},
-                    ]}>
-                    #{index + 1}
-                  </Text>
+            <Card 
+              key={shopData.shop.id}
+              onPress={() => navigation.navigate('ShopMode', {shopId: shopData.shop.id})}>
+              <View style={styles.shopCard}>
+                <View style={styles.shopHeader}>
+                  <View style={styles.shopInfo}>
+                    <View style={styles.shopNameRow}>
+                      <Text style={[styles.shopName, {color: colors.text}]}>
+                        {shopData.shop.name}
+                      </Text>
+                      {isCheapestShop && (
+                        <View style={[styles.cheapestBadge, {backgroundColor: colors.success}]}>
+                          <Text style={styles.cheapestText}>BEST PRICE</Text>
+                        </View>
+                      )}
+                    </View>
+                    {shopData.shop.address && (
+                      <Text style={[styles.shopAddress, {color: colors.textSecondary}]}>
+                        {shopData.shop.address}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={styles.shopPriceInfo}>
+                    <Text style={[styles.fromLabel, {color: colors.textSecondary}]}>
+                      from
+                    </Text>
+                    <Text style={[styles.shopPrice, {color: isCheapestShop ? colors.success : colors.primary}]}>
+                      {formatPrice(shopData.cheapestPrice, state.settings.currency)}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.shopInfo}>
-                  <Text style={[styles.shopName, {color: colors.text}]}>
-                    {item.shop.name}
-                  </Text>
-                  <Text style={[styles.shopAddress, {color: colors.textSecondary}]}>
-                    {item.shop.address || item.shop.category}
-                  </Text>
-                </View>
-                <View style={styles.priceInfo}>
-                  <Text
-                    style={[
-                      styles.price,
-                      {color: isCheapest ? colors.success : colors.text},
-                    ]}>
-                    {formatPrice(item.price, state.settings.currency)}
-                  </Text>
-                  {isCheapest ? (
-                    <View style={[styles.cheapestBadge, {backgroundColor: colors.success + '20'}]}>
-                      <Text style={[styles.cheapestText, {color: colors.success}]}>
-                        Cheapest
+
+                {/* Brand list */}
+                <View style={[styles.brandList, {borderTopColor: colors.border}]}>
+                  {shopData.brands.map((brand, brandIndex) => (
+                    <View key={brand.id} style={styles.brandRow}>
+                      <View style={styles.brandInfo}>
+                        <Text style={[styles.brandName, {color: colors.text}]}>
+                          {brand.brand}
+                        </Text>
+                        {brandIndex === 0 && shopData.brands.length > 1 && (
+                          <Text style={[styles.cheapestAtShop, {color: colors.success}]}>
+                            cheapest here
+                          </Text>
+                        )}
+                      </View>
+                      <Text style={[styles.brandPrice, {color: colors.text}]}>
+                        {formatPrice(brand.price, state.settings.currency)}
                       </Text>
                     </View>
-                  ) : (
-                    <Text style={[styles.savingsText, {color: colors.error}]}>
-                      +{formatPrice(savings, state.settings.currency)}
-                    </Text>
-                  )}
+                  ))}
                 </View>
               </View>
             </Card>
@@ -185,7 +251,7 @@ export const ProductDetailScreen: React.FC = () => {
         })
       )}
 
-      {/* Quick Actions */}
+      {/* Actions */}
       <View style={styles.actions}>
         <Button title="Edit Product" onPress={handleEdit} />
         <Button
@@ -200,7 +266,7 @@ export const ProductDetailScreen: React.FC = () => {
       {/* Meta Info */}
       <View style={styles.meta}>
         <Text style={[styles.metaText, {color: colors.textLight}]}>
-          Added: {new Date(product.createdAt).toLocaleDateString()}
+          Created: {new Date(product.createdAt).toLocaleDateString()}
         </Text>
         <Text style={[styles.metaText, {color: colors.textLight}]}>
           Updated: {new Date(product.updatedAt).toLocaleDateString()}
@@ -248,10 +314,22 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: 14,
     fontWeight: '600',
-    marginBottom: 4,
   },
-  unit: {
-    fontSize: 13,
+  availabilityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.base,
+    borderRadius: 12,
+    marginTop: Spacing.base,
+  },
+  availabilityIcon: {
+    fontSize: 18,
+    marginRight: Spacing.sm,
+  },
+  availabilityText: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
   },
   notesSection: {
     marginTop: Spacing.base,
@@ -267,6 +345,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
+  priceOverview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  priceOverviewItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  priceOverviewLabel: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  priceOverviewValue: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  priceOverviewDivider: {
+    width: 1,
+    height: 40,
+  },
   section: {
     marginTop: Spacing.lg,
     marginBottom: Spacing.base,
@@ -279,50 +377,75 @@ const styles = StyleSheet.create({
   sectionSubtitle: {
     fontSize: 14,
   },
-  priceCard: {
+  shopCard: {},
+  shopHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
-  },
-  rankBadge: {
-    width: 36,
-    alignItems: 'center',
-  },
-  rankText: {
-    fontSize: 16,
-    fontWeight: '700',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   shopInfo: {
     flex: 1,
-    marginLeft: Spacing.sm,
+  },
+  shopNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flexWrap: 'wrap',
   },
   shopName: {
     fontSize: 16,
     fontWeight: '600',
   },
-  shopAddress: {
-    fontSize: 13,
-    marginTop: 2,
-  },
-  priceInfo: {
-    alignItems: 'flex-end',
-  },
-  price: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
   cheapestBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
-    marginTop: 4,
   },
   cheapestText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
-  savingsText: {
-    fontSize: 12,
+  shopAddress: {
+    fontSize: 13,
     marginTop: 2,
+  },
+  shopPriceInfo: {
+    alignItems: 'flex-end',
+  },
+  fromLabel: {
+    fontSize: 11,
+  },
+  shopPrice: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  brandList: {
+    marginTop: Spacing.base,
+    paddingTop: Spacing.base,
+    borderTopWidth: 1,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Spacing.xs,
+  },
+  brandInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  brandName: {
+    fontSize: 14,
+  },
+  cheapestAtShop: {
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+  brandPrice: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   emptyState: {
     alignItems: 'center',

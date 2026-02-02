@@ -40,7 +40,7 @@ const ShopDetailScreen: React.FC = () => {
   const productsAtShop = getProductsForShop(shopId);
   const cheaperAlternatives = getCheaperAlternatives(
     shopId,
-    state.shopProducts,
+    state.shopProductBrands,
     state.shops,
     state.products,
   );
@@ -157,20 +157,31 @@ const ShopDetailScreen: React.FC = () => {
             <Text style={[styles.sectionTitle, {color: colors.text}]}>
               Products ({productsAtShop.length})
             </Text>
-            {productsAtShop.slice(0, 5).map(({product, shopProduct}) => (
-              <Card
-                key={product.id}
-                onPress={() => navigation.navigate('ProductDetail', {productId: product.id})}>
-                <View style={styles.productRow}>
-                  <Text style={[styles.productName, {color: colors.text}]}>
-                    {product.name}
-                  </Text>
-                  <Text style={[styles.productPrice, {color: colors.primary}]}>
-                    {formatPrice(shopProduct.price, state.settings.currency)}
-                  </Text>
-                </View>
-              </Card>
-            ))}
+            {productsAtShop.slice(0, 5).map(({product, brands}) => {
+              const cheapestPrice = Math.min(...brands.map(b => b.price));
+              return (
+                <Card
+                  key={product.id}
+                  onPress={() => navigation.navigate('ProductDetail', {productId: product.id})}>
+                  <View style={styles.productRow}>
+                    <View style={styles.productInfo}>
+                      <Text style={[styles.productName, {color: colors.text}]}>
+                        {product.name}
+                      </Text>
+                      <Text style={[styles.brandCount, {color: colors.textSecondary}]}>
+                        {brands.length} option{brands.length !== 1 ? 's' : ''}
+                      </Text>
+                    </View>
+                    <View style={styles.priceColumn}>
+                      <Text style={[styles.priceLabel, {color: colors.textSecondary}]}>from</Text>
+                      <Text style={[styles.productPrice, {color: colors.primary}]}>
+                        {formatPrice(cheapestPrice, state.settings.currency)}
+                      </Text>
+                    </View>
+                  </View>
+                </Card>
+              );
+            })}
             {productsAtShop.length > 5 && (
               <TouchableOpacity
                 style={[styles.seeAllButton, {borderColor: colors.border}]}
@@ -314,14 +325,27 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  productInfo: {
+    flex: 1,
+  },
   productName: {
     fontSize: FontSize.base,
-    flex: 1,
+    fontWeight: '500',
+  },
+  brandCount: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  priceColumn: {
+    alignItems: 'flex-end',
+    marginLeft: Spacing.base,
+  },
+  priceLabel: {
+    fontSize: FontSize.xs,
   },
   productPrice: {
     fontSize: FontSize.base,
     fontWeight: '700',
-    marginLeft: Spacing.base,
   },
   seeAllButton: {
     padding: Spacing.base,

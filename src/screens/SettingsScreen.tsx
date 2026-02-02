@@ -99,7 +99,7 @@ const SettingsScreen: React.FC = () => {
                 shops: [],
                 schedules: [],
                 products: [],
-                shopProducts: [],
+                shopProductBrands: [],
                 settings: defaultSettings,
               },
             });
