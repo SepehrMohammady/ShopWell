@@ -12,6 +12,7 @@ import {
   TouchableOpacity,
   Platform,
 } from 'react-native';
+import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList, Schedule} from '../types';
@@ -20,6 +21,7 @@ import {useTheme} from '../context/ThemeContext';
 import {Button, Input, Card} from '../components/common';
 import {Spacing, FontSize} from '../constants';
 import {generateId, getCurrentTimestamp, formatDate} from '../utils';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'AddEditSchedule'>;
@@ -68,6 +70,14 @@ const AddEditScheduleScreen: React.FC = () => {
     existingSchedule?.reminderMinutes || 0,
   );
   const [notes, setNotes] = useState(existingSchedule?.notes || '');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+
+  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
+    setShowDatePicker(Platform.OS === 'ios');
+    if (selectedDate) {
+      setDate(selectedDate.toISOString());
+    }
+  };
 
   useEffect(() => {
     navigation.setOptions({
@@ -160,12 +170,24 @@ const AddEditScheduleScreen: React.FC = () => {
         />
 
         <Text style={[styles.label, {color: colors.text}]}>Date</Text>
-        <Card>
-          <Text style={[styles.dateText, {color: colors.text}]}>📅 {formatDate(date)}</Text>
-          <Text style={[styles.helperText, {color: colors.textLight}]}>
-            Tap to change date (date picker coming soon)
-          </Text>
-        </Card>
+        <TouchableOpacity onPress={() => setShowDatePicker(true)}>
+          <Card>
+            <View style={styles.dateRow}>
+              <MaterialCommunityIcons name="calendar" size={20} color={colors.primary} />
+              <Text style={[styles.dateText, {color: colors.text}]}>{formatDate(date)}</Text>
+              <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textSecondary} />
+            </View>
+          </Card>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={new Date(date)}
+            mode="date"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleDateChange}
+            minimumDate={new Date()}
+          />
+        )}
 
         <Input
           label="Time (optional)"
@@ -343,12 +365,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
     marginTop: Spacing.md,
   },
+  dateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
   dateText: {
     fontSize: FontSize.base,
-  },
-  helperText: {
-    fontSize: FontSize.xs,
-    marginTop: Spacing.xs,
+    flex: 1,
   },
   horizontalScroll: {
     marginBottom: Spacing.md,

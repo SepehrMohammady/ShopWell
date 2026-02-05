@@ -147,9 +147,8 @@ export type RootStackParamList = {
 };
 
 export type MainTabParamList = {
-  ShoppingLists: undefined;
-  Shops: undefined;
   Products: undefined;
+  Shops: undefined;
   Schedule: undefined;
   Settings: undefined;
 };
