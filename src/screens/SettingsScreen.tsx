@@ -3,7 +3,7 @@
  */
 
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity, Switch} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity, Switch, Image} from 'react-native';
 import {Card} from '../components/common';
 import {Spacing, FontSize, APP_VERSION} from '../constants';
 import {StorageService} from '../services/StorageService';
@@ -18,6 +18,7 @@ import {
 } from '../services/LocationService';
 import {initializeNotificationService} from '../services/NotificationService';
 import {defaultSettings} from '../types';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const SettingsScreen: React.FC = () => {
   const {state, dispatch, updateSettings} = useApp();
@@ -110,10 +111,6 @@ const SettingsScreen: React.FC = () => {
     );
   };
 
-  const handleContact = () => {
-    Linking.openURL('mailto:support@shopwell.app');
-  };
-
   const themeModes: {label: string; value: ThemeMode}[] = [
     {label: 'Light', value: 'light'},
     {label: 'Dark', value: 'dark'},
@@ -123,6 +120,19 @@ const SettingsScreen: React.FC = () => {
   return (
     <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
       <View style={styles.content}>
+        {/* App Header with Logo */}
+        <View style={styles.appHeader}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={[styles.appName, {color: colors.text}]}>ShopWell</Text>
+          <Text style={[styles.appTagline, {color: colors.textSecondary}]}>
+            Smart Shopping Management
+          </Text>
+        </View>
+
         <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Appearance</Text>
         <Card>
           <View style={styles.settingRow}>
@@ -227,9 +237,22 @@ const SettingsScreen: React.FC = () => {
           </View>
           <View style={[styles.divider, {backgroundColor: colors.border}]} />
           <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, {color: colors.text}]}>Platform</Text>
-            <Text style={[styles.settingValue, {color: colors.textSecondary}]}>React Native</Text>
+            <Text style={[styles.settingLabel, {color: colors.text}]}>Developer</Text>
+            <Text style={[styles.settingValue, {color: colors.textSecondary}]}>Sepehr Mohammady</Text>
           </View>
+          <View style={[styles.divider, {backgroundColor: colors.border}]} />
+          <TouchableOpacity 
+            style={styles.settingRow}
+            onPress={() => Linking.openURL('https://github.com/SepehrMohammady/ShopWell')}
+          >
+            <View style={styles.settingInfo}>
+              <Text style={[styles.settingLabel, {color: colors.text}]}>Source Code</Text>
+              <Text style={[styles.settingDescription, {color: colors.textSecondary}]}>
+                github.com/SepehrMohammady/ShopWell
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="open-in-new" size={20} color={colors.textLight} />
+          </TouchableOpacity>
         </Card>
 
         <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Data</Text>
@@ -242,19 +265,8 @@ const SettingsScreen: React.FC = () => {
           </View>
         </Card>
 
-        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Support</Text>
-        <Card onPress={handleContact}>
-          <View style={styles.settingRow}>
-            <Text style={[styles.settingLabel, {color: colors.text}]}>Contact Us</Text>
-            <Text style={[styles.arrow, {color: colors.textLight}]}>→</Text>
-          </View>
-        </Card>
-
         <View style={styles.footer}>
           <Text style={[styles.footerText, {color: colors.textSecondary}]}>
-            ShopWell - Smart Shopping Management
-          </Text>
-          <Text style={[styles.footerSubtext, {color: colors.textLight}]}>
             Made with ❤️ for better shopping
           </Text>
         </View>
@@ -269,6 +281,24 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: Spacing.base,
+  },
+  appHeader: {
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    marginBottom: Spacing.md,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: Spacing.md,
+  },
+  appName: {
+    fontSize: FontSize.xxl,
+    fontWeight: '700',
+  },
+  appTagline: {
+    fontSize: FontSize.sm,
+    marginTop: Spacing.xs,
   },
   sectionTitle: {
     fontSize: FontSize.sm,
@@ -350,12 +380,7 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xxxl,
   },
   footerText: {
-    fontSize: FontSize.md,
-    fontWeight: '500',
-  },
-  footerSubtext: {
     fontSize: FontSize.sm,
-    marginTop: Spacing.xs,
   },
 });
 
