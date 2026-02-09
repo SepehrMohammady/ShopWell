@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import Card from '../components/common/Card';
@@ -85,7 +86,7 @@ export const ProductDetailScreen: React.FC = () => {
               styles.categoryBadge,
               {backgroundColor: categoryInfo.color + '20'},
             ]}>
-            <Text style={styles.categoryIcon}>{categoryInfo.icon}</Text>
+            <MaterialCommunityIcons name={categoryInfo.icon} size={32} color={categoryInfo.color} />
           </View>
           <View style={styles.headerInfo}>
             <Text style={[styles.productName, {color: colors.text}]}>
@@ -108,9 +109,12 @@ export const ProductDetailScreen: React.FC = () => {
             },
           ]}
           onPress={handleToggleAvailability}>
-          <Text style={styles.availabilityIcon}>
-            {product.isAvailable ? '✓' : '🛒'}
-          </Text>
+          <MaterialCommunityIcons
+            name={product.isAvailable ? 'check' : 'cart-outline'}
+            size={18}
+            color={product.isAvailable ? colors.success : colors.primary}
+            style={{marginRight: Spacing.sm}}
+          />
           <Text
             style={[
               styles.availabilityText,
@@ -179,7 +183,7 @@ export const ProductDetailScreen: React.FC = () => {
       {allPrices.length === 0 ? (
         <Card>
           <View style={styles.emptyState}>
-            <Text style={styles.emptyIcon}>💰</Text>
+            <MaterialCommunityIcons name="tag-outline" size={40} color={colors.textSecondary} style={{marginBottom: Spacing.base}} />
             <Text style={[styles.emptyTitle, {color: colors.text}]}>
               No prices yet
             </Text>
@@ -300,9 +304,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: Spacing.base,
   },
-  categoryIcon: {
-    fontSize: 32,
-  },
   headerInfo: {
     flex: 1,
   },
@@ -321,10 +322,6 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
     borderRadius: 12,
     marginTop: Spacing.base,
-  },
-  availabilityIcon: {
-    fontSize: 18,
-    marginRight: Spacing.sm,
   },
   availabilityText: {
     fontSize: 14,
@@ -450,10 +447,6 @@ const styles = StyleSheet.create({
   emptyState: {
     alignItems: 'center',
     padding: Spacing.lg,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: Spacing.base,
   },
   emptyTitle: {
     fontSize: 16,

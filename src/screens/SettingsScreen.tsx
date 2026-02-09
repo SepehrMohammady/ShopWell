@@ -267,7 +267,7 @@ const SettingsScreen: React.FC = () => {
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, {color: colors.textSecondary}]}>
-            Made with ❤️ for better shopping
+            Made with love for better shopping
           </Text>
         </View>
       </View>

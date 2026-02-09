@@ -7,6 +7,7 @@ import {View, Text, StyleSheet} from 'react-native';
 import {Spacing, FontSize} from '../../constants';
 import {useTheme} from '../../context/ThemeContext';
 import Button from './Button';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 interface EmptyStateProps {
   icon: string;
@@ -27,7 +28,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.icon}>{icon}</Text>
+      <MaterialCommunityIcons name={icon} size={64} color={colors.primary} />
       <Text style={[styles.title, {color: colors.text}]}>{title}</Text>
       <Text style={[styles.message, {color: colors.textSecondary}]}>{message}</Text>
       {actionLabel && onAction && (
@@ -50,13 +51,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.xxl,
     paddingVertical: Spacing.xxxl,
   },
-  icon: {
-    fontSize: 64,
-    marginBottom: Spacing.lg,
-  },
   title: {
     fontSize: FontSize.xl,
     fontWeight: '600',
+    marginTop: Spacing.lg,
     marginBottom: Spacing.sm,
     textAlign: 'center',
   },

@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import Card from '../components/common/Card';
@@ -99,11 +100,16 @@ export const ProductsScreen: React.FC = () => {
           {borderColor: colors.primary},
         ]}
         onPress={() => setViewMode('shopping')}>
+        <MaterialCommunityIcons
+          name="cart-outline"
+          size={16}
+          color={viewMode === 'shopping' ? colors.white : colors.primary}
+        />
         <Text style={[
           styles.viewModeText,
           {color: viewMode === 'shopping' ? colors.white : colors.primary},
         ]}>
-          🛒 Shopping List
+          Shopping List
         </Text>
         {viewMode === 'shopping' && (
           <View style={[styles.countBadge, {backgroundColor: colors.white}]}>
@@ -120,11 +126,16 @@ export const ProductsScreen: React.FC = () => {
           {borderColor: colors.success},
         ]}
         onPress={() => setViewMode('available')}>
+        <MaterialCommunityIcons
+          name="check"
+          size={16}
+          color={viewMode === 'available' ? colors.white : colors.success}
+        />
         <Text style={[
           styles.viewModeText,
           {color: viewMode === 'available' ? colors.white : colors.success},
         ]}>
-          ✓ Available
+          Available
         </Text>
         {viewMode === 'available' && (
           <View style={[styles.countBadge, {backgroundColor: colors.white}]}>
@@ -156,7 +167,12 @@ export const ProductsScreen: React.FC = () => {
             {best.productsAvailable} items • {best.cheapestProducts} cheapest • ~{formatPrice(best.estimatedTotal, state.settings.currency)}
           </Text>
         </View>
-        <Text style={styles.bestShopArrow}>→</Text>
+        <MaterialCommunityIcons
+          name="chevron-right"
+          size={24}
+          color={colors.primary}
+          style={styles.bestShopArrow}
+        />
       </TouchableOpacity>
     );
   };
@@ -181,9 +197,12 @@ export const ProductsScreen: React.FC = () => {
                 },
               ]}
               onPress={() => setSelectedCategory(item)}>
-              <Text style={styles.categoryIcon}>
-                {item === 'all' ? '📋' : categoryInfo?.icon}
-              </Text>
+              <MaterialCommunityIcons
+                name={item === 'all' ? 'view-list' : categoryInfo!.icon}
+                size={16}
+                color={isSelected ? colors.white : colors.text}
+                style={styles.categoryIconStyle}
+              />
               <Text
                 style={[
                   styles.categoryLabel,
@@ -215,9 +234,9 @@ export const ProductsScreen: React.FC = () => {
               },
             ]}
             onPress={() => toggleProductAvailability(item.id)}>
-            <Text style={styles.availabilityIcon}>
-              {item.isAvailable ? '✓' : ''}
-            </Text>
+            {item.isAvailable && (
+              <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
+            )}
           </TouchableOpacity>
 
           <View style={styles.productInfo}>
@@ -230,9 +249,16 @@ export const ProductsScreen: React.FC = () => {
                   styles.categoryTag,
                   {backgroundColor: categoryInfo.color + '20'},
                 ]}>
-                <Text style={[styles.categoryTagText, {color: categoryInfo.color}]}>
-                  {categoryInfo.icon} {categoryInfo.label}
-                </Text>
+                <View style={styles.categoryTagContent}>
+                  <MaterialCommunityIcons
+                    name={categoryInfo.icon}
+                    size={12}
+                    color={categoryInfo.color}
+                  />
+                  <Text style={[styles.categoryTagText, {color: categoryInfo.color}]}>
+                    {categoryInfo.label}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
@@ -279,7 +305,12 @@ export const ProductsScreen: React.FC = () => {
 
       {/* Search Bar */}
       <View style={[styles.searchContainer, {backgroundColor: colors.surface}]}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <MaterialCommunityIcons
+          name="magnify"
+          size={18}
+          color={colors.textLight}
+          style={styles.searchIconStyle}
+        />
         <TextInput
           style={[styles.searchInput, {color: colors.text}]}
           placeholder="Search products..."
@@ -289,7 +320,12 @@ export const ProductsScreen: React.FC = () => {
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Text style={styles.clearIcon}>✕</Text>
+            <MaterialCommunityIcons
+              name="close"
+              size={16}
+              color={colors.textLight}
+              style={styles.clearIconStyle}
+            />
           </TouchableOpacity>
         )}
       </View>
@@ -300,7 +336,7 @@ export const ProductsScreen: React.FC = () => {
       {/* Products List */}
       {filteredProducts.length === 0 ? (
         <EmptyState
-          icon={viewMode === 'shopping' ? '🎉' : '📦'}
+          icon={viewMode === 'shopping' ? 'party-popper' : 'package-variant-closed'}
           title={searchQuery ? 'No products found' : (viewMode === 'shopping' ? 'All stocked up!' : 'No available products')}
           message={getEmptyMessage()}
         />
@@ -378,7 +414,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   bestShopArrow: {
-    fontSize: 20,
     marginLeft: Spacing.base,
   },
   searchContainer: {
@@ -390,16 +425,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     height: 48,
   },
-  searchIcon: {
-    fontSize: 18,
+  searchIconStyle: {
     marginRight: Spacing.sm,
   },
   searchInput: {
     flex: 1,
     fontSize: 16,
   },
-  clearIcon: {
-    fontSize: 16,
+  clearIconStyle: {
     padding: Spacing.sm,
   },
   categoryContainer: {
@@ -415,8 +448,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
-  categoryIcon: {
-    fontSize: 16,
+  categoryIconStyle: {
     marginRight: Spacing.xs,
   },
   categoryLabel: {
@@ -440,11 +472,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: Spacing.base,
   },
-  availabilityIcon: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
   productInfo: {
     flex: 1,
   },
@@ -461,6 +488,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 8,
+  },
+  categoryTagContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   categoryTagText: {
     fontSize: 12,

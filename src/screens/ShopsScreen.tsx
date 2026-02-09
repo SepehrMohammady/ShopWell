@@ -6,22 +6,14 @@ import React from 'react';
 import {View, FlatList, StyleSheet, Text} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList, Shop} from '../types';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import {RootStackParamList, Shop, ShopCategoryInfo} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, FAB} from '../components/common';
 import {Spacing, FontSize, CategoryColors} from '../constants';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
-
-const categoryEmojis: {[key: string]: string} = {
-  grocery: '🛒',
-  pharmacy: '💊',
-  electronics: '📱',
-  clothing: '👕',
-  homeGoods: '🏠',
-  other: '🏪',
-};
 
 const ShopsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -38,6 +30,7 @@ const ShopsScreen: React.FC = () => {
 
   const renderShopItem = ({item}: {item: Shop}) => {
     const categoryColor = CategoryColors[item.category] || colors.other;
+    const catInfo = ShopCategoryInfo[item.category];
 
     return (
       <Card onPress={() => handleShopPress(item.id)} elevated>
@@ -45,19 +38,30 @@ const ShopsScreen: React.FC = () => {
           <View style={styles.shopInfo}>
             <View
               style={[styles.categoryBadge, {backgroundColor: categoryColor}]}>
-              <Text style={styles.categoryEmoji}>
-                {categoryEmojis[item.category] || '🏪'}
-              </Text>
+              <MaterialCommunityIcons name={catInfo.icon} size={24} color="#FFFFFF" />
             </View>
             <View style={styles.shopDetails}>
               <View style={styles.nameRow}>
                 <Text style={[styles.shopName, {color: colors.text}]}>{item.name}</Text>
-                {item.isFavorite && <Text style={styles.favorite}>⭐</Text>}
+                {item.isFavorite && (
+                  <MaterialCommunityIcons name="star" size={16} color="#FFD700" style={{marginLeft: Spacing.sm}} />
+                )}
               </View>
               {item.address && (
-                <Text style={[styles.shopAddress, {color: colors.textSecondary}]} numberOfLines={1}>
-                  📍 {item.address}
-                </Text>
+                <View style={styles.metaRow}>
+                  <MaterialCommunityIcons name="map-marker" size={14} color={colors.textSecondary} />
+                  <Text style={[styles.shopAddress, {color: colors.textSecondary}]} numberOfLines={1}>
+                    {item.address}
+                  </Text>
+                </View>
+              )}
+              {item.isOnline && (
+                <View style={styles.metaRow}>
+                  <MaterialCommunityIcons name="web" size={14} color={colors.textSecondary} />
+                  <Text style={[styles.shopAddress, {color: colors.textSecondary}]} numberOfLines={1}>
+                    Online{item.url ? ` — ${item.url}` : ''}
+                  </Text>
+                </View>
               )}
               <Text style={[styles.categoryLabel, {color: colors.textSecondary}]}>
                 {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
@@ -73,7 +77,7 @@ const ShopsScreen: React.FC = () => {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         <EmptyState
-          icon="🏪"
+          icon="store"
           title="No Shops Yet"
           message="Add your favorite shops to quickly assign items and plan your shopping trips."
           actionLabel="Add Shop"
@@ -121,9 +125,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoryEmoji: {
-    fontSize: 24,
-  },
   shopDetails: {
     marginLeft: Spacing.md,
     flex: 1,
@@ -148,6 +149,11 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     marginTop: 4,
     textTransform: 'capitalize',
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
 });
 

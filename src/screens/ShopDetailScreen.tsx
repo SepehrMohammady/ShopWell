@@ -6,7 +6,8 @@ import React from 'react';
 import {View, StyleSheet, ScrollView, Text, TouchableOpacity} from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList} from '../types';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import {RootStackParamList, ShopCategoryInfo} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, Button} from '../components/common';
@@ -16,15 +17,6 @@ import {formatPrice, getCheaperAlternatives} from '../utils/priceHelper';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'ShopDetail'>;
-
-const categoryEmojis: {[key: string]: string} = {
-  grocery: '🛒',
-  pharmacy: '💊',
-  electronics: '📱',
-  clothing: '👕',
-  homeGoods: '🏠',
-  other: '🏪',
-};
 
 const ShopDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -64,7 +56,7 @@ const ShopDetailScreen: React.FC = () => {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         <EmptyState
-          icon="❌"
+          icon="close-circle"
           title="Shop Not Found"
           message="This shop no longer exists."
         />
@@ -92,9 +84,7 @@ const ShopDetailScreen: React.FC = () => {
           <View style={styles.shopHeader}>
             <View
               style={[styles.categoryBadge, {backgroundColor: categoryColor}]}>
-              <Text style={styles.categoryEmoji}>
-                {categoryEmojis[shop.category] || '🏪'}
-              </Text>
+              <MaterialCommunityIcons name={ShopCategoryInfo[shop.category]?.icon || 'store'} size={28} color="#FFFFFF" />
             </View>
             <View style={styles.shopInfo}>
               <Text style={[styles.shopName, {color: colors.text}]}>{shop.name}</Text>
@@ -105,9 +95,7 @@ const ShopDetailScreen: React.FC = () => {
             <TouchableOpacity
               onPress={handleToggleFavorite}
               style={styles.favoriteButton}>
-              <Text style={styles.favoriteIcon}>
-                {shop.isFavorite ? '⭐' : '☆'}
-              </Text>
+              <MaterialCommunityIcons name={shop.isFavorite ? 'star' : 'star-outline'} size={28} color={shop.isFavorite ? '#FFB300' : colors.textLight} />
             </TouchableOpacity>
           </View>
         </Card>
@@ -115,22 +103,33 @@ const ShopDetailScreen: React.FC = () => {
         {/* Address */}
         {shop.address && (
           <Card>
-            <Text style={[styles.detailLabel, {color: colors.textSecondary}]}>📍 Address</Text>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}><MaterialCommunityIcons name="map-marker" size={16} color={colors.textSecondary} /><Text style={[styles.detailLabel, {color: colors.textSecondary, marginLeft: 4}]}>Address</Text></View>
             <Text style={[styles.detailValue, {color: colors.text}]}>{shop.address}</Text>
+          </Card>
+        )}
+
+        {/* Website */}
+        {shop.isOnline && shop.url && (
+          <Card>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              <MaterialCommunityIcons name="web" size={16} color={colors.textSecondary} />
+              <Text style={[styles.detailLabel, {color: colors.textSecondary, marginLeft: 4}]}>Website</Text>
+            </View>
+            <Text style={[styles.detailValue, {color: colors.primary}]}>{shop.url}</Text>
           </Card>
         )}
 
         {/* Notes */}
         {shop.notes && (
           <Card>
-            <Text style={[styles.detailLabel, {color: colors.textSecondary}]}>📝 Notes</Text>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}><MaterialCommunityIcons name="note-text-outline" size={16} color={colors.textSecondary} /><Text style={[styles.detailLabel, {color: colors.textSecondary, marginLeft: 4}]}>Notes</Text></View>
             <Text style={[styles.detailValue, {color: colors.text}]}>{shop.notes}</Text>
           </Card>
         )}
 
         {/* Created Date */}
         <Card>
-          <Text style={[styles.detailLabel, {color: colors.textSecondary}]}>📅 Added</Text>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}><MaterialCommunityIcons name="calendar" size={16} color={colors.textSecondary} /><Text style={[styles.detailLabel, {color: colors.textSecondary, marginLeft: 4}]}>Added</Text></View>
           <Text style={[styles.detailValue, {color: colors.text}]}>{formatDate(shop.createdAt)}</Text>
         </Card>
 
@@ -139,7 +138,7 @@ const ShopDetailScreen: React.FC = () => {
           <TouchableOpacity
             style={[styles.shopHereButton, {backgroundColor: colors.primary}]}
             onPress={() => navigation.navigate('ShopMode', {shopId})}>
-            <Text style={styles.shopHereEmoji}>🛒</Text>
+            <MaterialCommunityIcons name="cart" size={32} color="#FFFFFF" style={{marginRight: Spacing.base}} />
             <View style={styles.shopHereContent}>
               <Text style={styles.shopHereTitle}>Shop Here</Text>
               <Text style={styles.shopHereSubtitle}>
@@ -147,7 +146,7 @@ const ShopDetailScreen: React.FC = () => {
                 {cheaperAlternatives.length > 0 && ` • ${cheaperAlternatives.length} with warnings`}
               </Text>
             </View>
-            <Text style={styles.shopHereArrow}>→</Text>
+            <MaterialCommunityIcons name="chevron-right" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         )}
 
@@ -209,9 +208,7 @@ const ShopDetailScreen: React.FC = () => {
                   })
                 }>
                 <Text style={[styles.scheduleTitle, {color: colors.text}]}>{schedule.title}</Text>
-                <Text style={[styles.scheduleDate, {color: colors.textSecondary}]}>
-                  📅 {formatDate(schedule.date)}
-                </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}><MaterialCommunityIcons name="calendar" size={14} color={colors.textSecondary} /><Text style={[styles.scheduleDate, {color: colors.textSecondary, marginLeft: 4}]}>{formatDate(schedule.date)}</Text></View>
               </Card>
             ))}
           </>
@@ -249,9 +246,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  categoryEmoji: {
-    fontSize: 28,
-  },
+
   shopInfo: {
     flex: 1,
     marginLeft: Spacing.md,
@@ -267,9 +262,7 @@ const styles = StyleSheet.create({
   favoriteButton: {
     padding: Spacing.sm,
   },
-  favoriteIcon: {
-    fontSize: 28,
-  },
+
   detailLabel: {
     fontSize: FontSize.sm,
     marginBottom: Spacing.xs,
@@ -298,10 +291,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     marginTop: Spacing.base,
   },
-  shopHereEmoji: {
-    fontSize: 32,
-    marginRight: Spacing.base,
-  },
+
   shopHereContent: {
     flex: 1,
   },
@@ -315,11 +305,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.8)',
     marginTop: 2,
   },
-  shopHereArrow: {
-    fontSize: 24,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
+
   productRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -4,6 +4,7 @@
 
 import React from 'react';
 import {TouchableOpacity, View, Text, StyleSheet} from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {Spacing, BorderRadius, FontSize} from '../../constants';
 import {useTheme} from '../../context/ThemeContext';
 
@@ -36,7 +37,7 @@ const Checkbox: React.FC<CheckboxProps> = ({
             borderColor: checked ? colors.primary : colors.border,
           },
         ]}>
-        {checked && <Text style={[styles.checkmark, {color: colors.textInverse}]}>✓</Text>}
+        {checked && <MaterialCommunityIcons name="check" size={14} color={colors.textInverse} />}
       </View>
       {label && (
         <Text

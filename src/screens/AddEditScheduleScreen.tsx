@@ -60,9 +60,6 @@ const AddEditScheduleScreen: React.FC = () => {
   const [selectedShopId, setSelectedShopId] = useState(
     existingSchedule?.shopId || '',
   );
-  const [selectedListId, setSelectedListId] = useState(
-    existingSchedule?.listId || '',
-  );
   const [recurring, setRecurring] = useState<string>(
     existingSchedule?.recurringPattern || 'none',
   );
@@ -105,7 +102,6 @@ const AddEditScheduleScreen: React.FC = () => {
       date,
       time: time || undefined,
       shopId: selectedShopId || undefined,
-      listId: selectedListId || undefined,
       isRecurring: recurring !== 'none',
       recurringPattern:
         recurring !== 'none'
@@ -222,38 +218,6 @@ const AddEditScheduleScreen: React.FC = () => {
                   ]}
                   onPress={() => setSelectedShopId(shop.id)}>
                   <Text style={[styles.selectItemText, {color: selectedShopId === shop.id ? colors.textInverse : colors.text}]}>{shop.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </>
-        )}
-
-        {state.shoppingLists.length > 0 && (
-          <>
-            <Text style={[styles.label, {color: colors.text}]}>Link to Shopping List (optional)</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.horizontalScroll}>
-              <TouchableOpacity
-                style={[
-                  styles.selectItem,
-                  {backgroundColor: colors.surface, borderColor: colors.border},
-                  !selectedListId && {backgroundColor: colors.primary, borderColor: colors.primary},
-                ]}
-                onPress={() => setSelectedListId('')}>
-                <Text style={[styles.selectItemText, {color: !selectedListId ? colors.textInverse : colors.text}]}>None</Text>
-              </TouchableOpacity>
-              {state.shoppingLists.map(list => (
-                <TouchableOpacity
-                  key={list.id}
-                  style={[
-                    styles.selectItem,
-                    {backgroundColor: colors.surface, borderColor: colors.border},
-                    selectedListId === list.id && {backgroundColor: colors.primary, borderColor: colors.primary},
-                  ]}
-                  onPress={() => setSelectedListId(list.id)}>
-                  <Text style={[styles.selectItemText, {color: selectedListId === list.id ? colors.textInverse : colors.text}]}>{list.name}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>

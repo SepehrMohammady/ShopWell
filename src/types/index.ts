@@ -45,33 +45,6 @@ export interface PriceComparison {
   isCheapest: boolean;
 }
 
-// Shopping Item
-export interface ShoppingItem {
-  id: string;
-  name: string;
-  quantity: number;
-  unit?: string;
-  isCompleted: boolean;
-  shopId?: string;
-  productId?: string; // Link to Product for price lookup
-  category?: ProductCategory;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-// Shopping List
-export interface ShoppingList {
-  id: string;
-  name: string;
-  items: ShoppingItem[];
-  shopId?: string;
-  scheduledDate?: string;
-  isCompleted: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
 // Shop Category
 export type ShopCategory =
   | 'grocery'
@@ -89,7 +62,9 @@ export interface Shop {
   category: ShopCategory;
   notes?: string;
   isFavorite: boolean;
-  // Location fields for geofencing
+  isOnline?: boolean;
+  url?: string;
+  // Location fields for geofencing (physical shops only)
   latitude?: number;
   longitude?: number;
   geofenceRadius?: number; // meters, default 200
@@ -103,7 +78,6 @@ export interface Schedule {
   id: string;
   title: string;
   shopId?: string;
-  listId?: string;
   date: string;
   time?: string;
   isRecurring: boolean;
@@ -125,7 +99,7 @@ export interface AppSettings {
 
 // App State
 export interface AppState {
-  shoppingLists: ShoppingList[];
+  shoppingLists: any[]; // kept for backward compatibility
   shops: Shop[];
   schedules: Schedule[];
   products: Product[];
@@ -136,11 +110,9 @@ export interface AppState {
 // Navigation types
 export type RootStackParamList = {
   MainTabs: undefined;
-  AddEditList: {listId?: string};
   AddEditShop: {shopId?: string};
   AddEditSchedule: {scheduleId?: string};
   AddEditProduct: {productId?: string};
-  ListDetail: {listId: string};
   ShopDetail: {shopId: string};
   ProductDetail: {productId: string};
   ShopMode: {shopId: string};
@@ -153,14 +125,24 @@ export type MainTabParamList = {
   Settings: undefined;
 };
 
+// Shop category display info
+export const ShopCategoryInfo: Record<ShopCategory, {label: string; icon: string; color: string}> = {
+  grocery: {label: 'Grocery', icon: 'cart', color: '#4CAF50'},
+  pharmacy: {label: 'Pharmacy', icon: 'pill', color: '#F44336'},
+  electronics: {label: 'Electronics', icon: 'cellphone', color: '#2196F3'},
+  clothing: {label: 'Clothing', icon: 'tshirt-crew', color: '#9C27B0'},
+  homeGoods: {label: 'Home Goods', icon: 'home', color: '#FF9800'},
+  other: {label: 'Other', icon: 'store', color: '#607D8B'},
+};
+
 // Product category display info
 export const ProductCategoryInfo: Record<ProductCategory, {label: string; icon: string; color: string}> = {
-  personalCare: {label: 'Personal Care', icon: '🧼', color: '#E91E63'},
-  healthWellness: {label: 'Health & Wellness', icon: '💊', color: '#4CAF50'},
-  household: {label: 'Household', icon: '🏠', color: '#FF9800'},
-  beverages: {label: 'Beverages', icon: '🧃', color: '#2196F3'},
-  food: {label: 'Food', icon: '🍞', color: '#8BC34A'},
-  other: {label: 'Other', icon: '📦', color: '#607D8B'},
+  personalCare: {label: 'Personal Care', icon: 'face-woman-shimmer', color: '#E91E63'},
+  healthWellness: {label: 'Health & Wellness', icon: 'pill', color: '#4CAF50'},
+  household: {label: 'Household', icon: 'home', color: '#FF9800'},
+  beverages: {label: 'Beverages', icon: 'cup-water', color: '#2196F3'},
+  food: {label: 'Food', icon: 'food-apple', color: '#8BC34A'},
+  other: {label: 'Other', icon: 'package-variant', color: '#607D8B'},
 };
 
 // Default app settings

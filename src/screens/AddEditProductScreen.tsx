@@ -11,9 +11,12 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Modal,
+  FlatList,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import Input from '../components/common/Input';
@@ -72,6 +75,9 @@ export const AddEditProductScreen: React.FC = () => {
 
   // Brand prices - each entry is a shop+brand+price combination
   const [brandPrices, setBrandPrices] = useState<BrandPriceEntry[]>([]);
+
+  // Shop picker modal state
+  const [activePickerEntryId, setActivePickerEntryId] = useState<string | null>(null);
 
   // Load existing brand prices when editing
   useEffect(() => {
@@ -230,7 +236,12 @@ export const AddEditProductScreen: React.FC = () => {
               },
             ]}
             onPress={() => setCategory(cat)}>
-            <Text style={styles.categoryOptionIcon}>{info.icon}</Text>
+            <MaterialCommunityIcons
+              name={info.icon}
+              size={16}
+              color={isSelected ? colors.white : colors.text}
+              style={styles.categoryOptionIcon}
+            />
             <Text
               style={[
                 styles.categoryOptionLabel,
@@ -257,43 +268,28 @@ export const AddEditProductScreen: React.FC = () => {
             <TouchableOpacity
               onPress={() => handleRemoveBrandPrice(entry.id)}
               style={styles.removeButton}>
-              <Text style={[styles.removeButtonText, {color: colors.error}]}>
-                ✕ Remove
-              </Text>
+              <View style={styles.removeButtonContent}>
+                <MaterialCommunityIcons name="close" size={14} color={colors.error} />
+                <Text style={[styles.removeButtonText, {color: colors.error}]}>
+                  Remove
+                </Text>
+              </View>
             </TouchableOpacity>
           </View>
 
-          {/* Shop selector */}
+          {/* Shop selector - dropdown */}
           <Text style={[styles.fieldLabel, {color: colors.textSecondary}]}>
             Shop
           </Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.shopSelector}>
-            {state.shops.map(s => (
-              <TouchableOpacity
-                key={s.id}
-                style={[
-                  styles.shopChip,
-                  {
-                    backgroundColor:
-                      entry.shopId === s.id ? colors.primary : colors.surface,
-                    borderColor:
-                      entry.shopId === s.id ? colors.primary : colors.border,
-                  },
-                ]}
-                onPress={() => handleUpdateBrandPrice(entry.id, 'shopId', s.id)}>
-                <Text
-                  style={[
-                    styles.shopChipText,
-                    {color: entry.shopId === s.id ? colors.white : colors.text},
-                  ]}>
-                  {s.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
+          <TouchableOpacity
+            style={[styles.shopDropdown, {backgroundColor: colors.surface, borderColor: colors.border}]}
+            onPress={() => setActivePickerEntryId(entry.id)}>
+            <MaterialCommunityIcons name="store" size={18} color={colors.primary} />
+            <Text style={[styles.shopDropdownText, {color: colors.text}]}>
+              {shop?.name || 'Select Shop'}
+            </Text>
+            <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textSecondary} />
+          </TouchableOpacity>
 
           {/* Brand and Price in row */}
           <View style={styles.brandPriceRow}>
@@ -351,7 +347,11 @@ export const AddEditProductScreen: React.FC = () => {
               },
             ]}
             onPress={() => setIsAvailable(false)}>
-            <Text style={styles.availabilityIcon}>🛒</Text>
+            <MaterialCommunityIcons
+              name="cart-outline"
+              size={18}
+              color={!isAvailable ? colors.white : colors.text}
+            />
             <Text
               style={[
                 styles.availabilityLabel,
@@ -369,7 +369,11 @@ export const AddEditProductScreen: React.FC = () => {
               },
             ]}
             onPress={() => setIsAvailable(true)}>
-            <Text style={styles.availabilityIcon}>✓</Text>
+            <MaterialCommunityIcons
+              name="check"
+              size={18}
+              color={isAvailable ? colors.white : colors.text}
+            />
             <Text
               style={[
                 styles.availabilityLabel,
@@ -428,9 +432,12 @@ export const AddEditProductScreen: React.FC = () => {
 
             return Object.entries(shopGroups).map(([shopName, entries]) => (
               <View key={shopName} style={styles.summaryShop}>
-                <Text style={[styles.summaryShopName, {color: colors.text}]}>
-                  📍 {shopName}
-                </Text>
+                <View style={styles.summaryShopNameRow}>
+                  <MaterialCommunityIcons name="map-marker" size={14} color={colors.text} />
+                  <Text style={[styles.summaryShopName, {color: colors.text}]}>
+                    {shopName}
+                  </Text>
+                </View>
                 {entries.map(e => (
                   <Text
                     key={e.id}
@@ -457,6 +464,45 @@ export const AddEditProductScreen: React.FC = () => {
           />
         )}
       </View>
+
+      {/* Shop Picker Modal */}
+      <Modal
+        visible={activePickerEntryId !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setActivePickerEntryId(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, {color: colors.text}]}>Select Shop</Text>
+              <TouchableOpacity onPress={() => setActivePickerEntryId(null)}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={state.shops}
+              keyExtractor={s => s.id}
+              renderItem={({item: s}) => {
+                const isSelected = activePickerEntryId ? brandPrices.find(bp => bp.id === activePickerEntryId)?.shopId === s.id : false;
+                return (
+                  <TouchableOpacity
+                    style={[styles.modalItem, isSelected && {backgroundColor: colors.primary + '15'}]}
+                    onPress={() => {
+                      if (activePickerEntryId) {
+                        handleUpdateBrandPrice(activePickerEntryId, 'shopId', s.id);
+                      }
+                      setActivePickerEntryId(null);
+                    }}>
+                    <MaterialCommunityIcons name="store" size={20} color={isSelected ? colors.primary : colors.textSecondary} />
+                    <Text style={[styles.modalItemText, {color: colors.text}, isSelected && {color: colors.primary, fontWeight: '600'}]}>{s.name}</Text>
+                    {isSelected && <MaterialCommunityIcons name="check" size={20} color={colors.primary} />}
+                  </TouchableOpacity>
+                );
+              }}
+            />
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -494,7 +540,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   categoryOptionIcon: {
-    fontSize: 16,
     marginRight: Spacing.xs,
   },
   categoryOptionLabel: {
@@ -518,9 +563,6 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     gap: Spacing.xs,
   },
-  availabilityIcon: {
-    fontSize: 18,
-  },
   availabilityLabel: {
     fontSize: 14,
     fontWeight: '600',
@@ -541,6 +583,11 @@ const styles = StyleSheet.create({
   removeButton: {
     padding: Spacing.xs,
   },
+  removeButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   removeButtonText: {
     fontSize: 13,
     fontWeight: '500',
@@ -549,19 +596,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginBottom: Spacing.xs,
   },
-  shopSelector: {
-    marginBottom: Spacing.sm,
-  },
-  shopChip: {
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.sm,
-    borderRadius: 16,
+  shopDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.base,
+    borderRadius: 12,
     borderWidth: 1,
-    marginRight: Spacing.sm,
+    marginBottom: Spacing.sm,
+    gap: Spacing.sm,
   },
-  shopChipText: {
-    fontSize: 13,
-    fontWeight: '500',
+  shopDropdownText: {
+    flex: 1,
+    fontSize: 14,
   },
   brandPriceRow: {
     flexDirection: 'row',
@@ -594,6 +640,11 @@ const styles = StyleSheet.create({
   summaryShop: {
     marginBottom: Spacing.sm,
   },
+  summaryShopNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   summaryShopName: {
     fontSize: 13,
     fontWeight: '600',
@@ -609,5 +660,38 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     marginTop: Spacing.sm,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '60%',
+    paddingBottom: Spacing.xl,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.base,
+    gap: Spacing.base,
+  },
+  modalItemText: {
+    flex: 1,
+    fontSize: 16,
   },
 });

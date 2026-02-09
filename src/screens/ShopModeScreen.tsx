@@ -11,6 +11,7 @@ import {
   FlatList,
   TouchableOpacity,
 } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {useApp} from '../context/AppContext';
@@ -122,7 +123,7 @@ export const ShopModeScreen: React.FC = () => {
 
   const renderHeader = () => (
     <View style={[styles.header, {backgroundColor: colors.primary}]}>
-      <Text style={styles.shopEmoji}>🛒</Text>
+      <MaterialCommunityIcons name="cart" size={36} color="#FFFFFF" style={{marginRight: Spacing.base}} />
       <View style={styles.headerInfo}>
         <Text style={styles.shoppingAt}>Shopping at</Text>
         <Text style={styles.shopName}>{shop.name}</Text>
@@ -138,7 +139,7 @@ export const ShopModeScreen: React.FC = () => {
     if (cheaperAlternatives.length === 0) {
       return (
         <View style={[styles.successBanner, {backgroundColor: colors.success + '20'}]}>
-          <Text style={styles.successIcon}>✓</Text>
+          <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} style={{marginRight: Spacing.sm}} />
           <Text style={[styles.successText, {color: colors.success}]}>
             All products here have the best prices!
           </Text>
@@ -152,7 +153,7 @@ export const ShopModeScreen: React.FC = () => {
       <TouchableOpacity
         style={[styles.warningBanner, {backgroundColor: colors.warning + '20'}]}
         onPress={() => setShowWarningsOnly(!showWarningsOnly)}>
-        <Text style={styles.warningIcon}>⚠️</Text>
+        <MaterialCommunityIcons name="alert" size={20} color={colors.warning} style={{marginRight: Spacing.sm}} />
         <View style={styles.warningInfo}>
           <Text style={[styles.warningText, {color: colors.warning}]}>
             {cheaperAlternatives.length} product{cheaperAlternatives.length !== 1 ? 's' : ''} cheaper elsewhere
@@ -185,9 +186,11 @@ export const ShopModeScreen: React.FC = () => {
                 },
               ]}
               onPress={() => setSelectedCategory(item)}>
-              <Text style={styles.categoryIcon}>
-                {item === 'all' ? '📋' : categoryInfo?.icon}
-              </Text>
+              {item === 'all' ? (
+                <MaterialCommunityIcons name="view-list" size={16} color={isSelected ? '#FFFFFF' : colors.text} style={{marginRight: Spacing.xs}} />
+              ) : (
+                <MaterialCommunityIcons name={categoryInfo?.icon || 'package-variant'} size={16} color={isSelected ? '#FFFFFF' : colors.text} style={{marginRight: Spacing.xs}} />
+              )}
               <Text
                 style={[
                   styles.categoryLabel,
@@ -213,9 +216,12 @@ export const ShopModeScreen: React.FC = () => {
         {/* Warning banner if cheaper elsewhere */}
         {item.hasBetterPrice && cheaperAlt && (
           <View style={[styles.cheaperBanner, {backgroundColor: colors.warning + '15'}]}>
-            <Text style={[styles.cheaperText, {color: colors.warning}]}>
-              💡 Save {formatPrice(item.savings, state.settings.currency)} at {cheaperAlt.cheapestShop.name} ({cheaperAlt.cheapestBrand.brand})
-            </Text>
+            <View style={{flexDirection: 'row', alignItems: 'center'}}>
+              <MaterialCommunityIcons name="lightbulb-on-outline" size={14} color={colors.warning} />
+              <Text style={[styles.cheaperText, {color: colors.warning, marginLeft: 4}]}>
+                Save {formatPrice(item.savings, state.settings.currency)} at {cheaperAlt.cheapestShop.name} ({cheaperAlt.cheapestBrand.brand})
+              </Text>
+            </View>
           </View>
         )}
 
@@ -230,9 +236,9 @@ export const ShopModeScreen: React.FC = () => {
               },
             ]}
             onPress={() => toggleProductAvailability(item.product.id)}>
-            <Text style={styles.availabilityIcon}>
-              {item.product.isAvailable ? '✓' : ''}
-            </Text>
+            {item.product.isAvailable && (
+              <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
+            )}
           </TouchableOpacity>
 
           <View style={styles.productInfo}>
@@ -245,14 +251,16 @@ export const ShopModeScreen: React.FC = () => {
                   styles.categoryTag,
                   {backgroundColor: categoryInfo.color + '20'},
                 ]}>
-                <Text style={[styles.categoryTagText, {color: categoryInfo.color}]}>
-                  {categoryInfo.icon} {categoryInfo.label}
-                </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <MaterialCommunityIcons name={categoryInfo.icon} size={11} color={categoryInfo.color} />
+                  <Text style={[styles.categoryTagText, {color: categoryInfo.color, marginLeft: 2}]}>{categoryInfo.label}</Text>
+                </View>
               </View>
               {!item.product.isAvailable && (
-                <Text style={[styles.onListBadge, {color: colors.primary}]}>
-                  🛒 On list
-                </Text>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <MaterialCommunityIcons name="cart-outline" size={11} color={colors.primary} />
+                  <Text style={[styles.onListBadge, {color: colors.primary, marginLeft: 2}]}>On list</Text>
+                </View>
               )}
             </View>
           </View>
@@ -312,7 +320,7 @@ export const ShopModeScreen: React.FC = () => {
       {/* Products List */}
       {filteredProducts.length === 0 ? (
         <EmptyState
-          icon="📦"
+          icon="package-variant-closed"
           title={showWarningsOnly ? 'No warnings' : 'No products at this shop'}
           message={
             showWarningsOnly
@@ -348,10 +356,7 @@ const styles = StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingBottom: Spacing.lg,
   },
-  shopEmoji: {
-    fontSize: 36,
-    marginRight: Spacing.base,
-  },
+
   headerInfo: {
     flex: 1,
   },
@@ -388,10 +393,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.base,
     borderRadius: 12,
   },
-  warningIcon: {
-    fontSize: 20,
-    marginRight: Spacing.sm,
-  },
+
   warningInfo: {
     flex: 1,
   },
@@ -411,10 +413,7 @@ const styles = StyleSheet.create({
     marginTop: Spacing.base,
     borderRadius: 12,
   },
-  successIcon: {
-    fontSize: 20,
-    marginRight: Spacing.sm,
-  },
+
   successText: {
     fontSize: 14,
     fontWeight: '600',
@@ -432,10 +431,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
-  categoryIcon: {
-    fontSize: 16,
-    marginRight: Spacing.xs,
-  },
+
   categoryLabel: {
     fontSize: 13,
     fontWeight: '500',
@@ -466,11 +462,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: Spacing.base,
   },
-  availabilityIcon: {
-    fontSize: 14,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
+
   productInfo: {
     flex: 1,
   },

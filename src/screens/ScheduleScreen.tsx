@@ -12,6 +12,7 @@ import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, FAB} from '../components/common';
 import {Spacing, FontSize} from '../constants';
 import {getRelativeDate} from '../utils';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -34,12 +35,6 @@ const ScheduleScreen: React.FC = () => {
     return shop?.name;
   };
 
-  const getListName = (listId?: string): string | undefined => {
-    if (!listId) return undefined;
-    const list = state.shoppingLists.find(l => l.id === listId);
-    return list?.name;
-  };
-
   // Sort schedules by date
   const sortedSchedules = [...state.schedules].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -47,7 +42,6 @@ const ScheduleScreen: React.FC = () => {
 
   const renderScheduleItem = ({item}: {item: Schedule}) => {
     const shopName = getShopName(item.shopId);
-    const listName = getListName(item.listId);
 
     return (
       <Card onPress={() => handleSchedulePress(item.id)} elevated>
@@ -63,27 +57,46 @@ const ScheduleScreen: React.FC = () => {
           <View style={styles.scheduleDetails}>
             <View style={styles.titleRow}>
               <Text style={[styles.scheduleTitle, {color: colors.text}]}>{item.title}</Text>
-              {item.isCompleted && <Text style={[styles.completedBadge, {color: colors.success}]}>✓</Text>}
+              {item.isCompleted && (
+                <MaterialCommunityIcons name="check-circle" size={18} color={colors.success} />
+              )}
             </View>
-            <Text style={[styles.scheduleTime, {color: colors.textSecondary}]}>
-              📅 {getRelativeDate(item.date)}
-              {item.time && ` • ⏰ ${item.time}`}
-            </Text>
+            <View style={styles.metaRow}>
+              <MaterialCommunityIcons name="calendar" size={14} color={colors.textSecondary} />
+              <Text style={[styles.scheduleTime, {color: colors.textSecondary}]}>
+                {getRelativeDate(item.date)}
+                {item.time && ` • `}
+              </Text>
+              {item.time && (
+                <>
+                  <MaterialCommunityIcons name="clock-outline" size={14} color={colors.textSecondary} />
+                  <Text style={[styles.scheduleTime, {color: colors.textSecondary}]}>
+                    {item.time}
+                  </Text>
+                </>
+              )}
+            </View>
             {shopName && (
-              <Text style={[styles.scheduleMeta, {color: colors.textSecondary}]}>🏪 {shopName}</Text>
-            )}
-            {listName && (
-              <Text style={[styles.scheduleMeta, {color: colors.textSecondary}]}>📝 {listName}</Text>
+              <View style={styles.metaRow}>
+                <MaterialCommunityIcons name="store" size={14} color={colors.textSecondary} />
+                <Text style={[styles.scheduleMeta, {color: colors.textSecondary}]}>{shopName}</Text>
+              </View>
             )}
             {item.isRecurring && (
-              <Text style={[styles.recurringBadge, {color: colors.primary}]}>
-                🔄 {item.recurringPattern}
-              </Text>
+              <View style={styles.metaRow}>
+                <MaterialCommunityIcons name="repeat" size={14} color={colors.primary} />
+                <Text style={[styles.recurringBadge, {color: colors.primary}]}>
+                  {item.recurringPattern}
+                </Text>
+              </View>
             )}
             {item.reminder && (
-              <Text style={[styles.reminderBadge, {color: colors.warning}]}>
-                🔔 Reminder {item.reminderMinutes} min before
-              </Text>
+              <View style={styles.metaRow}>
+                <MaterialCommunityIcons name="bell" size={14} color={colors.warning} />
+                <Text style={[styles.reminderBadge, {color: colors.warning}]}>
+                  Reminder {item.reminderMinutes} min before
+                </Text>
+              </View>
             )}
           </View>
         </View>
@@ -95,7 +108,7 @@ const ScheduleScreen: React.FC = () => {
     return (
       <View style={[styles.container, {backgroundColor: colors.background}]}>
         <EmptyState
-          icon="📅"
+          icon="calendar-blank"
           title="No Schedules"
           message="Plan your shopping trips by scheduling when to visit your favorite shops."
           actionLabel="Create Schedule"
@@ -159,24 +172,23 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
-  completedBadge: {
-    fontSize: FontSize.lg,
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
   },
   scheduleTime: {
     fontSize: FontSize.sm,
-    marginTop: 4,
   },
   scheduleMeta: {
     fontSize: FontSize.sm,
-    marginTop: 2,
   },
   recurringBadge: {
     fontSize: FontSize.xs,
-    marginTop: 4,
   },
   reminderBadge: {
     fontSize: FontSize.xs,
-    marginTop: 2,
   },
 });
 

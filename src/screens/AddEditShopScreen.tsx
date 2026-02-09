@@ -13,7 +13,9 @@ import {
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList, Shop, ShopCategory} from '../types';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import Geolocation from '@react-native-community/geolocation';
+import {RootStackParamList, Shop, ShopCategory, ShopCategoryInfo} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Button, Input, Card} from '../components/common';
@@ -23,14 +25,7 @@ import {generateId, getCurrentTimestamp} from '../utils';
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'AddEditShop'>;
 
-const categories: {id: ShopCategory; label: string; emoji: string}[] = [
-  {id: 'grocery', label: 'Grocery', emoji: '🛒'},
-  {id: 'pharmacy', label: 'Pharmacy', emoji: '💊'},
-  {id: 'electronics', label: 'Electronics', emoji: '📱'},
-  {id: 'clothing', label: 'Clothing', emoji: '👕'},
-  {id: 'homeGoods', label: 'Home Goods', emoji: '🏠'},
-  {id: 'other', label: 'Other', emoji: '🏪'},
-];
+const categories: ShopCategory[] = ['grocery', 'pharmacy', 'electronics', 'clothing', 'homeGoods', 'other'];
 
 const AddEditShopScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -52,7 +47,9 @@ const AddEditShopScreen: React.FC = () => {
   const [isFavorite, setIsFavorite] = useState(
     existingShop?.isFavorite || false,
   );
-  
+  const [isOnline, setIsOnline] = useState(existingShop?.isOnline || false);
+  const [url, setUrl] = useState(existingShop?.url || '');
+
   // Location fields
   const [latitude, setLatitude] = useState(
     existingShop?.latitude?.toString() || '',
@@ -66,6 +63,7 @@ const AddEditShopScreen: React.FC = () => {
   const [notifyOnNearby, setNotifyOnNearby] = useState(
     existingShop?.notifyOnNearby || false,
   );
+  const [isGettingLocation, setIsGettingLocation] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({
@@ -79,6 +77,22 @@ const AddEditShopScreen: React.FC = () => {
         ) : null,
     });
   }, [existingShop]);
+
+  const handleUseMyLocation = () => {
+    setIsGettingLocation(true);
+    Geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(position.coords.latitude.toString());
+        setLongitude(position.coords.longitude.toString());
+        setIsGettingLocation(false);
+      },
+      (error) => {
+        Alert.alert('Error', 'Could not get your location. Please make sure location services are enabled.');
+        setIsGettingLocation(false);
+      },
+      {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+    );
+  };
 
   const handleSave = () => {
     if (!name.trim()) {
@@ -98,6 +112,8 @@ const AddEditShopScreen: React.FC = () => {
       category,
       notes: notes.trim() || undefined,
       isFavorite,
+      isOnline,
+      url: isOnline ? url.trim() || undefined : undefined,
       // Location fields
       latitude: !isNaN(lat) ? lat : undefined,
       longitude: !isNaN(lng) ? lng : undefined,
@@ -154,15 +170,32 @@ const AddEditShopScreen: React.FC = () => {
           placeholder="e.g., 123 Main Street"
         />
 
+        <Text style={[styles.label, {color: colors.text}]}>Shop Type</Text>
+        <View style={styles.shopTypeRow}>
+          <TouchableOpacity
+            style={[styles.shopTypeOption, {backgroundColor: !isOnline ? colors.primary : colors.surface, borderColor: !isOnline ? colors.primary : colors.border}]}
+            onPress={() => setIsOnline(false)}>
+            <MaterialCommunityIcons name="store" size={18} color={!isOnline ? colors.white : colors.text} />
+            <Text style={[styles.shopTypeText, {color: !isOnline ? colors.white : colors.text}]}>Physical</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.shopTypeOption, {backgroundColor: isOnline ? colors.primary : colors.surface, borderColor: isOnline ? colors.primary : colors.border}]}
+            onPress={() => setIsOnline(true)}>
+            <MaterialCommunityIcons name="web" size={18} color={isOnline ? colors.white : colors.text} />
+            <Text style={[styles.shopTypeText, {color: isOnline ? colors.white : colors.text}]}>Online</Text>
+          </TouchableOpacity>
+        </View>
+
         <Text style={[styles.label, {color: colors.text}]}>Category</Text>
         <View style={styles.categoryGrid}>
           {categories.map(cat => {
-            const isSelected = category === cat.id;
-            const categoryColor = CategoryColors[cat.id] || colors.other;
+            const isSelected = category === cat;
+            const info = ShopCategoryInfo[cat];
+            const categoryColor = CategoryColors[cat] || colors.other;
 
             return (
               <TouchableOpacity
-                key={cat.id}
+                key={cat}
                 style={[
                   styles.categoryItem,
                   {backgroundColor: colors.surface, borderColor: colors.border},
@@ -171,16 +204,21 @@ const AddEditShopScreen: React.FC = () => {
                     backgroundColor: `${categoryColor}15`,
                   },
                 ]}
-                onPress={() => setCategory(cat.id)}
+                onPress={() => setCategory(cat)}
                 activeOpacity={0.7}>
-                <Text style={styles.categoryEmoji}>{cat.emoji}</Text>
+                <MaterialCommunityIcons
+                  name={info.icon}
+                  size={24}
+                  color={isSelected ? categoryColor : colors.textSecondary}
+                  style={{marginBottom: Spacing.xs}}
+                />
                 <Text
                   style={[
                     styles.categoryLabel,
                     {color: colors.textSecondary},
                     isSelected && {color: categoryColor},
                   ]}>
-                  {cat.label}
+                  {info.label}
                 </Text>
               </TouchableOpacity>
             );
@@ -192,7 +230,11 @@ const AddEditShopScreen: React.FC = () => {
           onPress={() => setIsFavorite(!isFavorite)}
           activeOpacity={0.7}>
           <Text style={[styles.favoriteLabel, {color: colors.text}]}>Mark as Favorite</Text>
-          <Text style={styles.favoriteIcon}>{isFavorite ? '⭐' : '☆'}</Text>
+          <MaterialCommunityIcons
+            name={isFavorite ? 'star' : 'star-outline'}
+            size={24}
+            color={isFavorite ? '#FFD700' : colors.textSecondary}
+          />
         </TouchableOpacity>
 
         <Input
@@ -204,65 +246,92 @@ const AddEditShopScreen: React.FC = () => {
           numberOfLines={3}
         />
 
-        {/* Location Section */}
-        <Text style={[styles.sectionTitle, {color: colors.text}]}>
-          📍 Location (optional)
-        </Text>
-        <Text style={[styles.sectionDescription, {color: colors.textSecondary}]}>
-          Add coordinates to get notified when near this shop
-        </Text>
-
-        <View style={styles.coordinateRow}>
-          <View style={styles.coordinateField}>
-            <Input
-              label="Latitude"
-              value={latitude}
-              onChangeText={setLatitude}
-              placeholder="e.g., 45.4642"
-              keyboardType="decimal-pad"
-            />
-          </View>
-          <View style={styles.coordinateField}>
-            <Input
-              label="Longitude"
-              value={longitude}
-              onChangeText={setLongitude}
-              placeholder="e.g., 9.1900"
-              keyboardType="decimal-pad"
-            />
-          </View>
-        </View>
-
-        {latitude && longitude && (
+        {isOnline ? (
+          <Input
+            label="Website URL"
+            value={url}
+            onChangeText={setUrl}
+            placeholder="e.g., https://www.amazon.com"
+            keyboardType="url"
+          />
+        ) : (
           <>
-            <Input
-              label="Notification radius (meters)"
-              value={geofenceRadius}
-              onChangeText={setGeofenceRadius}
-              placeholder="200"
-              keyboardType="number-pad"
-            />
+            {/* Location Section */}
+            <Text style={[styles.sectionTitle, {color: colors.text}]}>
+              <MaterialCommunityIcons name="map-marker" size={18} color={colors.text} /> Location (optional)
+            </Text>
+            <Text style={[styles.sectionDescription, {color: colors.textSecondary}]}>
+              Add coordinates to get notified when near this shop
+            </Text>
 
             <TouchableOpacity
-              style={[
-                styles.notifyRow,
-                {
-                  backgroundColor: notifyOnNearby ? colors.primary + '15' : colors.surface,
-                  borderColor: notifyOnNearby ? colors.primary : colors.border,
-                },
-              ]}
-              onPress={() => setNotifyOnNearby(!notifyOnNearby)}
-              activeOpacity={0.7}>
-              <View style={styles.notifyContent}>
-                <Text style={[styles.notifyLabel, {color: colors.text}]}>
-                  Notify when nearby
-                </Text>
-                <Text style={[styles.notifyDescription, {color: colors.textSecondary}]}>
-                  Get a notification when you're within {geofenceRadius || state.settings.defaultGeofenceRadius}m
-                </Text>
-              </View>
-              <Text style={styles.notifyIcon}>{notifyOnNearby ? '🔔' : '🔕'}</Text>
+              style={[styles.useLocationButton, {backgroundColor: colors.primary + '15', borderColor: colors.primary}]}
+              onPress={handleUseMyLocation}
+              disabled={isGettingLocation}>
+              <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.primary} />
+              <Text style={[styles.useLocationText, {color: colors.primary}]}>
+                {isGettingLocation ? 'Getting location...' : 'Use My Current Location'}
+              </Text>
             </TouchableOpacity>
+
+            <View style={styles.coordinateRow}>
+              <View style={styles.coordinateField}>
+                <Input
+                  label="Latitude"
+                  value={latitude}
+                  onChangeText={setLatitude}
+                  placeholder="e.g., 45.4642"
+                  keyboardType="decimal-pad"
+                />
+              </View>
+              <View style={styles.coordinateField}>
+                <Input
+                  label="Longitude"
+                  value={longitude}
+                  onChangeText={setLongitude}
+                  placeholder="e.g., 9.1900"
+                  keyboardType="decimal-pad"
+                />
+              </View>
+            </View>
+
+            {latitude && longitude && (
+              <>
+                <Input
+                  label="Notification radius (meters)"
+                  value={geofenceRadius}
+                  onChangeText={setGeofenceRadius}
+                  placeholder="200"
+                  keyboardType="number-pad"
+                />
+
+                <TouchableOpacity
+                  style={[
+                    styles.notifyRow,
+                    {
+                      backgroundColor: notifyOnNearby ? colors.primary + '15' : colors.surface,
+                      borderColor: notifyOnNearby ? colors.primary : colors.border,
+                    },
+                  ]}
+                  onPress={() => setNotifyOnNearby(!notifyOnNearby)}
+                  activeOpacity={0.7}>
+                  <View style={styles.notifyContent}>
+                    <Text style={[styles.notifyLabel, {color: colors.text}]}>
+                      Notify when nearby
+                    </Text>
+                    <Text style={[styles.notifyDescription, {color: colors.textSecondary}]}>
+                      Get a notification when you're within {geofenceRadius || state.settings.defaultGeofenceRadius}m
+                    </Text>
+                  </View>
+                  <MaterialCommunityIcons
+                    name={notifyOnNearby ? 'bell' : 'bell-off'}
+                    size={24}
+                    color={notifyOnNearby ? colors.primary : colors.textSecondary}
+                    style={{marginLeft: Spacing.base}}
+                  />
+                </TouchableOpacity>
+              </>
+            )}
           </>
         )}
       </ScrollView>
@@ -315,10 +384,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     borderWidth: 2,
-  },
-  categoryEmoji: {
-    fontSize: 24,
-    marginBottom: Spacing.xs,
   },
   categoryLabel: {
     fontSize: FontSize.xs,
@@ -388,6 +453,39 @@ const styles = StyleSheet.create({
   notifyIcon: {
     fontSize: 24,
     marginLeft: Spacing.base,
+  },
+  shopTypeRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.base,
+  },
+  shopTypeOption: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.base,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    gap: Spacing.sm,
+  },
+  shopTypeText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  useLocationButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.base,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: Spacing.sm,
+    marginBottom: Spacing.base,
+  },
+  useLocationText: {
+    fontSize: 14,
+    fontWeight: '500',
   },
 });
 
