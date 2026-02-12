@@ -2,7 +2,7 @@
  * Add/Edit Shop Screen
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useRef} from 'react';
 import {
   View,
   StyleSheet,
@@ -10,11 +10,14 @@ import {
   Alert,
   Text,
   TouchableOpacity,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Geolocation from '@react-native-community/geolocation';
+import MapView, {Marker, MapPressEvent, PROVIDER_GOOGLE} from 'react-native-maps';
 import {RootStackParamList, Shop, ShopCategory, ShopCategoryInfo} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
@@ -64,6 +67,10 @@ const AddEditShopScreen: React.FC = () => {
     existingShop?.notifyOnNearby || false,
   );
   const [isGettingLocation, setIsGettingLocation] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const [mapMarker, setMapMarker] = useState<{latitude: number; longitude: number} | null>(
+    latitude && longitude ? {latitude: parseFloat(latitude), longitude: parseFloat(longitude)} : null,
+  );
 
   useEffect(() => {
     navigation.setOptions({
@@ -82,8 +89,11 @@ const AddEditShopScreen: React.FC = () => {
     setIsGettingLocation(true);
     Geolocation.getCurrentPosition(
       (position) => {
-        setLatitude(position.coords.latitude.toString());
-        setLongitude(position.coords.longitude.toString());
+        const lat = position.coords.latitude.toString();
+        const lng = position.coords.longitude.toString();
+        setLatitude(lat);
+        setLongitude(lng);
+        setMapMarker({latitude: position.coords.latitude, longitude: position.coords.longitude});
         setIsGettingLocation(false);
       },
       (error) => {
@@ -92,6 +102,19 @@ const AddEditShopScreen: React.FC = () => {
       },
       {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
     );
+  };
+
+  const handleMapPress = (event: MapPressEvent) => {
+    const {latitude: lat, longitude: lng} = event.nativeEvent.coordinate;
+    setMapMarker({latitude: lat, longitude: lng});
+  };
+
+  const handleConfirmMapLocation = () => {
+    if (mapMarker) {
+      setLatitude(mapMarker.latitude.toString());
+      setLongitude(mapMarker.longitude.toString());
+    }
+    setShowMapPicker(false);
   };
 
   const handleSave = () => {
@@ -264,15 +287,25 @@ const AddEditShopScreen: React.FC = () => {
               Add coordinates to get notified when near this shop
             </Text>
 
-            <TouchableOpacity
-              style={[styles.useLocationButton, {backgroundColor: colors.primary + '15', borderColor: colors.primary}]}
-              onPress={handleUseMyLocation}
-              disabled={isGettingLocation}>
-              <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.primary} />
-              <Text style={[styles.useLocationText, {color: colors.primary}]}>
-                {isGettingLocation ? 'Getting location...' : 'Use My Current Location'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.locationButtonsRow}>
+              <TouchableOpacity
+                style={[styles.locationButton, {backgroundColor: colors.primary + '15', borderColor: colors.primary}]}
+                onPress={handleUseMyLocation}
+                disabled={isGettingLocation}>
+                <MaterialCommunityIcons name="crosshairs-gps" size={20} color={colors.primary} />
+                <Text style={[styles.locationButtonText, {color: colors.primary}]}>
+                  {isGettingLocation ? 'Getting...' : 'Use My Location'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.locationButton, {backgroundColor: colors.success + '15', borderColor: colors.success}]}
+                onPress={() => setShowMapPicker(true)}>
+                <MaterialCommunityIcons name="map-search" size={20} color={colors.success} />
+                <Text style={[styles.locationButtonText, {color: colors.success}]}>
+                  Choose on Map
+                </Text>
+              </TouchableOpacity>
+            </View>
 
             <View style={styles.coordinateRow}>
               <View style={styles.coordinateField}>
@@ -343,6 +376,49 @@ const AddEditShopScreen: React.FC = () => {
           fullWidth
         />
       </View>
+
+      {/* Map Picker Modal */}
+      <Modal visible={showMapPicker} animationType="slide" onRequestClose={() => setShowMapPicker(false)}>
+        <View style={[styles.mapContainer, {backgroundColor: colors.background}]}>
+          <View style={[styles.mapHeader, {backgroundColor: colors.surface, borderBottomColor: colors.border}]}>
+            <TouchableOpacity onPress={() => setShowMapPicker(false)}>
+              <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+            </TouchableOpacity>
+            <Text style={[styles.mapTitle, {color: colors.text}]}>Choose Location</Text>
+            <TouchableOpacity onPress={handleConfirmMapLocation} disabled={!mapMarker}>
+              <Text style={[styles.mapConfirmText, {color: mapMarker ? colors.primary : colors.textLight}]}>Confirm</Text>
+            </TouchableOpacity>
+          </View>
+          <MapView
+            provider={PROVIDER_GOOGLE}
+            style={styles.map}
+            initialRegion={{
+              latitude: mapMarker?.latitude || 44.4056,
+              longitude: mapMarker?.longitude || 8.9463,
+              latitudeDelta: 0.01,
+              longitudeDelta: 0.01,
+            }}
+            onPress={handleMapPress}
+            showsUserLocation
+            showsMyLocationButton>
+            {mapMarker && (
+              <Marker
+                coordinate={mapMarker}
+                draggable
+                onDragEnd={(e) => setMapMarker(e.nativeEvent.coordinate)}
+              />
+            )}
+          </MapView>
+          {mapMarker && (
+            <View style={[styles.mapCoordinateBar, {backgroundColor: colors.surface}]}>
+              <MaterialCommunityIcons name="map-marker" size={16} color={colors.primary} />
+              <Text style={[styles.mapCoordinateText, {color: colors.textSecondary}]}>
+                {mapMarker.latitude.toFixed(6)}, {mapMarker.longitude.toFixed(6)}
+              </Text>
+            </View>
+          )}
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -473,19 +549,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  useLocationButton: {
+  locationButtonsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.base,
+  },
+  locationButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     padding: Spacing.base,
     borderRadius: 12,
     borderWidth: 1,
-    gap: Spacing.sm,
-    marginBottom: Spacing.base,
+    gap: Spacing.xs,
   },
-  useLocationText: {
-    fontSize: 14,
+  locationButtonText: {
+    fontSize: 13,
     fontWeight: '500',
+  },
+  mapContainer: {
+    flex: 1,
+  },
+  mapHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+  },
+  mapTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  mapConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  map: {
+    flex: 1,
+  },
+  mapCoordinateBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+    gap: Spacing.xs,
+  },
+  mapCoordinateText: {
+    fontSize: 13,
   },
 });
 

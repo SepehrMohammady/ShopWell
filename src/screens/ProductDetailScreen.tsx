@@ -237,7 +237,7 @@ export const ProductDetailScreen: React.FC = () => {
                         <Text style={[styles.brandName, {color: colors.text}]}>
                           {brand.brand}
                         </Text>
-                        {brandIndex === 0 && shopData.brands.length > 1 && (
+                        {brand.price === shopData.cheapestPrice && shopData.brands.length > 1 && (
                           <Text style={[styles.cheapestAtShop, {color: colors.success}]}>
                             cheapest here
                           </Text>
