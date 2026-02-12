@@ -17,7 +17,7 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Geolocation from '@react-native-community/geolocation';
-import MapView, {Marker, MapPressEvent, PROVIDER_GOOGLE} from 'react-native-maps';
+import MapView, {PROVIDER_GOOGLE} from 'react-native-maps';
 import {RootStackParamList, Shop, ShopCategory, ShopCategoryInfo} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
@@ -68,9 +68,12 @@ const AddEditShopScreen: React.FC = () => {
   );
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [showMapPicker, setShowMapPicker] = useState(false);
-  const [mapMarker, setMapMarker] = useState<{latitude: number; longitude: number} | null>(
-    latitude && longitude ? {latitude: parseFloat(latitude), longitude: parseFloat(longitude)} : null,
-  );
+  const [mapRegion, setMapRegion] = useState({
+    latitude: latitude ? parseFloat(latitude) : 44.4056,
+    longitude: longitude ? parseFloat(longitude) : 8.9463,
+    latitudeDelta: 0.01,
+    longitudeDelta: 0.01,
+  });
 
   useEffect(() => {
     navigation.setOptions({
@@ -93,7 +96,11 @@ const AddEditShopScreen: React.FC = () => {
         const lng = position.coords.longitude.toString();
         setLatitude(lat);
         setLongitude(lng);
-        setMapMarker({latitude: position.coords.latitude, longitude: position.coords.longitude});
+        setMapRegion(prev => ({
+          ...prev,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }));
         setIsGettingLocation(false);
       },
       (error) => {
@@ -104,16 +111,13 @@ const AddEditShopScreen: React.FC = () => {
     );
   };
 
-  const handleMapPress = (event: MapPressEvent) => {
-    const {latitude: lat, longitude: lng} = event.nativeEvent.coordinate;
-    setMapMarker({latitude: lat, longitude: lng});
+  const handleMapRegionChange = (region: {latitude: number; longitude: number; latitudeDelta: number; longitudeDelta: number}) => {
+    setMapRegion(region);
   };
 
   const handleConfirmMapLocation = () => {
-    if (mapMarker) {
-      setLatitude(mapMarker.latitude.toString());
-      setLongitude(mapMarker.longitude.toString());
-    }
+    setLatitude(mapRegion.latitude.toString());
+    setLongitude(mapRegion.longitude.toString());
     setShowMapPicker(false);
   };
 
@@ -385,38 +389,35 @@ const AddEditShopScreen: React.FC = () => {
               <MaterialCommunityIcons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
             <Text style={[styles.mapTitle, {color: colors.text}]}>Choose Location</Text>
-            <TouchableOpacity onPress={handleConfirmMapLocation} disabled={!mapMarker}>
-              <Text style={[styles.mapConfirmText, {color: mapMarker ? colors.primary : colors.textLight}]}>Confirm</Text>
+            <TouchableOpacity onPress={handleConfirmMapLocation}>
+              <Text style={[styles.mapConfirmText, {color: colors.primary}]}>Confirm</Text>
             </TouchableOpacity>
           </View>
-          <MapView
-            provider={PROVIDER_GOOGLE}
-            style={styles.map}
-            initialRegion={{
-              latitude: mapMarker?.latitude || 44.4056,
-              longitude: mapMarker?.longitude || 8.9463,
-              latitudeDelta: 0.01,
-              longitudeDelta: 0.01,
-            }}
-            onPress={handleMapPress}
-            showsUserLocation
-            showsMyLocationButton>
-            {mapMarker && (
-              <Marker
-                coordinate={mapMarker}
-                draggable
-                onDragEnd={(e) => setMapMarker(e.nativeEvent.coordinate)}
-              />
-            )}
-          </MapView>
-          {mapMarker && (
-            <View style={[styles.mapCoordinateBar, {backgroundColor: colors.surface}]}>
+          <View style={{flex: 1}}>
+            <MapView
+              provider={PROVIDER_GOOGLE}
+              style={styles.map}
+              initialRegion={mapRegion}
+              onRegionChangeComplete={handleMapRegionChange}
+              showsUserLocation
+              showsMyLocationButton>
+            </MapView>
+            {/* Fixed center pin */}
+            <View style={styles.mapPinContainer} pointerEvents="none">
+              <MaterialCommunityIcons name="map-marker" size={48} color="#E53935" style={{marginBottom: 48}} />
+            </View>
+          </View>
+          <View style={[styles.mapInfoBar, {backgroundColor: colors.surface}]}>
+            <View style={styles.mapCoordinateBar}>
               <MaterialCommunityIcons name="map-marker" size={16} color={colors.primary} />
               <Text style={[styles.mapCoordinateText, {color: colors.textSecondary}]}>
-                {mapMarker.latitude.toFixed(6)}, {mapMarker.longitude.toFixed(6)}
+                {mapRegion.latitude.toFixed(6)}, {mapRegion.longitude.toFixed(6)}
               </Text>
             </View>
-          )}
+            <Text style={[styles.mapHintText, {color: colors.textLight}]}>
+              Move the map to position the pin on your shop
+            </Text>
+          </View>
         </View>
       </Modal>
     </View>
@@ -593,12 +594,28 @@ const styles = StyleSheet.create({
   mapCoordinateBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.base,
-    paddingVertical: Spacing.md,
     gap: Spacing.xs,
   },
   mapCoordinateText: {
     fontSize: 13,
+  },
+  mapInfoBar: {
+    paddingHorizontal: Spacing.base,
+    paddingVertical: Spacing.md,
+  },
+  mapHintText: {
+    fontSize: 12,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
+  },
+  mapPinContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

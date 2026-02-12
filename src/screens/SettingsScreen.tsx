@@ -7,6 +7,7 @@ import {View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity, Sw
 import {Card} from '../components/common';
 import {Spacing, FontSize, APP_VERSION} from '../constants';
 import {StorageService} from '../services/StorageService';
+import {exportAndShare, pickAndImport} from '../services/BackupService';
 import {useApp} from '../context/AppContext';
 import {useTheme, ThemeMode} from '../context/ThemeContext';
 import {
@@ -24,6 +25,48 @@ const SettingsScreen: React.FC = () => {
   const {state, dispatch, updateSettings} = useApp();
   const {colors, themeMode, setThemeMode} = useTheme();
   const [isCheckingPermission, setIsCheckingPermission] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleExport = async () => {
+    setIsExporting(true);
+    try {
+      await exportAndShare(state);
+    } catch (error: any) {
+      Alert.alert('Export Failed', error?.message || 'Could not export data.');
+    }
+    setIsExporting(false);
+  };
+
+  const handleImport = async () => {
+    Alert.alert(
+      'Restore Backup',
+      'This will replace ALL current data with the backup. Are you sure?',
+      [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Restore',
+          style: 'destructive',
+          onPress: async () => {
+            setIsImporting(true);
+            try {
+              const importedState = await pickAndImport();
+              if (importedState) {
+                dispatch({type: 'SET_STATE', payload: importedState});
+                Alert.alert(
+                  'Restore Complete',
+                  `Restored ${importedState.products.length} products, ${importedState.shops.length} shops, ${importedState.schedules.length} schedules, and ${importedState.shopProductBrands.length} price entries.`,
+                );
+              }
+            } catch (error: any) {
+              Alert.alert('Restore Failed', error?.message || 'Could not import data.');
+            }
+            setIsImporting(false);
+          },
+        },
+      ],
+    );
+  };
 
   const handleToggleLocationNotifications = async () => {
     const newValue = !state.settings.locationNotificationsEnabled;
@@ -253,6 +296,36 @@ const SettingsScreen: React.FC = () => {
             </View>
             <MaterialCommunityIcons name="open-in-new" size={20} color={colors.textLight} />
           </TouchableOpacity>
+        </Card>
+
+        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Backup & Restore</Text>
+        <Card onPress={handleExport}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <MaterialCommunityIcons name="export-variant" size={20} color={colors.primary} style={{marginRight: Spacing.sm}} />
+                <Text style={[styles.settingLabel, {color: colors.text}]}>Export Backup</Text>
+              </View>
+              <Text style={[styles.settingDescription, {color: colors.textSecondary}]}>
+                Save all data as CSV via any app
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textLight} />
+          </View>
+        </Card>
+        <Card onPress={handleImport}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                <MaterialCommunityIcons name="import" size={20} color={colors.success} style={{marginRight: Spacing.sm}} />
+                <Text style={[styles.settingLabel, {color: colors.text}]}>Restore Backup</Text>
+              </View>
+              <Text style={[styles.settingDescription, {color: colors.textSecondary}]}>
+                Import data from a CSV backup file
+              </Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textLight} />
+          </View>
         </Card>
 
         <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Data</Text>
