@@ -1,9 +1,9 @@
 /**
  * Price comparison helper utilities
- * Works with brand-based pricing model
+ * Works with brand-based pricing model with unit price support
  */
 
-import {PriceComparison, ShopProductBrand, Shop, Product} from '../types';
+import {PriceComparison, ShopProductBrand, Shop, Product, UnitLabels, UnitType} from '../types';
 
 /**
  * Format a price with currency symbol
@@ -13,7 +13,65 @@ export const formatPrice = (amount: number, currency: string = '€'): string =>
 };
 
 /**
+ * Get unit price for a ShopProductBrand entry
+ * Returns price per unit if quantity is set, otherwise just the price
+ */
+export const getUnitPrice = (spb: ShopProductBrand): number => {
+  if (spb.quantity && spb.quantity > 0) {
+    return spb.price / spb.quantity;
+  }
+  return spb.price;
+};
+
+/**
+ * Format unit price string (e.g. "€0.08/pcs")
+ */
+export const formatUnitPrice = (spb: ShopProductBrand, currency: string = '€'): string | null => {
+  if (!spb.quantity || spb.quantity <= 0 || !spb.unit) {
+    return null;
+  }
+  const unitPrice = spb.price / spb.quantity;
+  const unitLabel = spb.unit;
+  return `${currency}${unitPrice.toFixed(3)}/${unitLabel}`;
+};
+
+/**
+ * Check if two SPBs can be compared by unit price (same unit type)
+ */
+const canCompareByUnit = (a: ShopProductBrand, b: ShopProductBrand): boolean => {
+  return !!(a.quantity && a.quantity > 0 && a.unit && b.quantity && b.quantity > 0 && b.unit && a.unit === b.unit);
+};
+
+/**
+ * Compare two SPBs - use unit price if both have same unit, otherwise absolute price
+ */
+const comparePrice = (a: ShopProductBrand, b: ShopProductBrand): number => {
+  if (canCompareByUnit(a, b)) {
+    return getUnitPrice(a) - getUnitPrice(b);
+  }
+  return a.price - b.price;
+};
+
+/**
+ * Get the effective comparison price for an SPB within a group of same-product brands
+ * If brands in the group share the same unit, use unit price; otherwise use absolute price
+ */
+const getEffectivePrice = (spb: ShopProductBrand, allBrands: ShopProductBrand[]): number => {
+  // Check if all brands with quantity info share the same unit
+  const brandsWithUnit = allBrands.filter(b => b.quantity && b.quantity > 0 && b.unit);
+  if (brandsWithUnit.length > 1) {
+    const firstUnit = brandsWithUnit[0].unit;
+    const allSameUnit = brandsWithUnit.every(b => b.unit === firstUnit);
+    if (allSameUnit && spb.quantity && spb.quantity > 0 && spb.unit) {
+      return getUnitPrice(spb);
+    }
+  }
+  return spb.price;
+};
+
+/**
  * Get the cheapest brand option for a product at a specific shop
+ * Uses unit price comparison when brands share the same unit
  */
 export const getCheapestBrandAtShop = (
   productId: string,
@@ -29,13 +87,14 @@ export const getCheapestBrandAtShop = (
   }
 
   return brandsAtShop.reduce((min, spb) =>
-    spb.price < min.price ? spb : min,
+    comparePrice(spb, min) < 0 ? spb : min,
   );
 };
 
 /**
  * Get price comparison for a product at a specific shop
  * Compares the cheapest brand at this shop vs cheapest brand anywhere
+ * Uses unit price when brands share the same unit
  */
 export const getPriceComparison = (
   productId: string,
@@ -57,24 +116,25 @@ export const getPriceComparison = (
     return null;
   }
 
-  // Find the cheapest option anywhere
+  // Find the cheapest option anywhere using unit-aware comparison
   const cheapestAnywhere = allBrandOptions.reduce((min, spb) =>
-    spb.price < min.price ? spb : min,
+    comparePrice(spb, min) < 0 ? spb : min,
   );
 
   const cheapestShop = shops.find(s => s.id === cheapestAnywhere.shopId);
-  const savings = cheapestAtThisShop.price - cheapestAnywhere.price;
-  const savingsPercent =
-    cheapestAtThisShop.price > 0
-      ? (savings / cheapestAtThisShop.price) * 100
-      : 0;
+  
+  // Use effective prices for savings calculation
+  const currentEffective = getEffectivePrice(cheapestAtThisShop, allBrandOptions);
+  const cheapestEffective = getEffectivePrice(cheapestAnywhere, allBrandOptions);
+  const savings = currentEffective - cheapestEffective;
+  const savingsPercent = currentEffective > 0 ? (savings / currentEffective) * 100 : 0;
 
   return {
     currentPrice: cheapestAtThisShop.price,
     cheapestPrice: cheapestAnywhere.price,
     cheapestShopId: cheapestAnywhere.shopId,
     cheapestShopName: cheapestShop?.name || 'Unknown',
-    savings,
+    savings: cheapestAtThisShop.price - cheapestAnywhere.price,
     savingsPercent,
     isCheapest: cheapestAtThisShop.id === cheapestAnywhere.id,
   };
@@ -82,6 +142,7 @@ export const getPriceComparison = (
 
 /**
  * Get the cheapest option for a product across all shops
+ * Uses unit price comparison when brands share the same unit
  */
 export const getCheapestOption = (
   productId: string,
@@ -95,7 +156,7 @@ export const getCheapestOption = (
   }
 
   const cheapest = allOptions.reduce((min, spb) =>
-    spb.price < min.price ? spb : min,
+    comparePrice(spb, min) < 0 ? spb : min,
   );
 
   const shop = shops.find(s => s.id === cheapest.shopId);
@@ -109,35 +170,42 @@ export const getCheapestOption = (
 
 /**
  * Get all prices for a product grouped by shop, sorted by cheapest option at each shop
+ * Uses unit price comparison when brands share the same unit
  */
 export const getAllPricesForProduct = (
   productId: string,
   shopProductBrands: ShopProductBrand[],
   shops: Shop[],
 ): Array<{shop: Shop; brands: ShopProductBrand[]; cheapestPrice: number}> => {
+  const allBrands = shopProductBrands.filter(spb => spb.productId === productId);
+  
   // Group by shop
   const shopIds = [...new Set(
-    shopProductBrands
-      .filter(spb => spb.productId === productId)
-      .map(spb => spb.shopId)
+    allBrands.map(spb => spb.shopId)
   )];
 
   return shopIds
     .map(shopId => {
       const shop = shops.find(s => s.id === shopId);
-      const brands = shopProductBrands
-        .filter(spb => spb.productId === productId && spb.shopId === shopId)
-        .sort((a, b) => a.price - b.price);
+      const brands = allBrands
+        .filter(spb => spb.shopId === shopId)
+        .sort((a, b) => comparePrice(a, b));
       const cheapestPrice = brands.length > 0 ? brands[0].price : Infinity;
       return shop ? {shop, brands, cheapestPrice} : null;
     })
     .filter((item): item is {shop: Shop; brands: ShopProductBrand[]; cheapestPrice: number} => item !== null)
-    .sort((a, b) => a.cheapestPrice - b.cheapestPrice);
+    .sort((a, b) => {
+      // Sort shops by their cheapest brand using unit-aware comparison
+      if (a.brands.length > 0 && b.brands.length > 0) {
+        return comparePrice(a.brands[0], b.brands[0]);
+      }
+      return a.cheapestPrice - b.cheapestPrice;
+    });
 };
 
 /**
  * Get products that are cheaper elsewhere (comparing cheapest options)
- * Useful for warnings when shopping at a specific shop
+ * Uses unit price comparison when brands share the same unit
  */
 export const getCheaperAlternatives = (
   shopId: string,
@@ -175,8 +243,9 @@ export const getCheaperAlternatives = (
     const cheapestAnywhere = getCheapestOption(productId, shopProductBrands, shops);
     
     if (cheapestAtThisShop && cheapestAnywhere && cheapestAnywhere.shop.id !== shopId) {
-      const savings = cheapestAtThisShop.price - cheapestAnywhere.price;
-      if (savings > 0) {
+      // Use unit-aware comparison
+      if (comparePrice(cheapestAtThisShop, cheapestAnywhere.brand) > 0) {
+        const savings = cheapestAtThisShop.price - cheapestAnywhere.price;
         const product = products.find(p => p.id === productId);
         if (product) {
           alternatives.push({

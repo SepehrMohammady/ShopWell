@@ -12,7 +12,7 @@ import {AppState, Product, Shop, Schedule, ShopProductBrand, AppSettings} from '
 const PRODUCT_COLUMNS = ['id', 'name', 'category', 'isAvailable', 'notes', 'createdAt', 'updatedAt'];
 const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'createdAt', 'updatedAt'];
 const SCHEDULE_COLUMNS = ['id', 'title', 'shopId', 'date', 'time', 'isRecurring', 'recurringPattern', 'reminder', 'reminderMinutes', 'notes', 'isCompleted', 'createdAt', 'updatedAt'];
-const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'lastUpdated'];
+const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'quantity', 'unit', 'lastUpdated'];
 const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'defaultGeofenceRadius', 'currency'];
 
 /**
@@ -180,6 +180,8 @@ const toSPB = (row: any): ShopProductBrand => ({
   brand: row.brand,
   price: parseFloat(row.price) || 0,
   currency: row.currency || '€',
+  quantity: row.quantity ? parseFloat(row.quantity) : undefined,
+  unit: row.unit || undefined,
   lastUpdated: row.lastUpdated,
 });
 

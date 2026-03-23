@@ -28,6 +28,8 @@ import {
   ShopProductBrand,
   ProductCategory,
   ProductCategoryInfo,
+  UnitType,
+  UnitLabels,
 } from '../types';
 import {Spacing} from '../constants';
 import {generateId} from '../utils/helpers';
@@ -41,6 +43,8 @@ interface BrandPriceEntry {
   shopId: string;
   brand: string;
   price: string;
+  quantity: string;
+  unit: UnitType;
   existingId?: string; // ID of existing ShopProductBrand if editing
 }
 
@@ -89,6 +93,8 @@ export const AddEditProductScreen: React.FC = () => {
           shopId: spb.shopId,
           brand: spb.brand,
           price: spb.price.toString(),
+          quantity: spb.quantity ? spb.quantity.toString() : '',
+          unit: spb.unit || 'pcs' as UnitType,
           existingId: spb.id,
         }));
       setBrandPrices(existingPrices);
@@ -108,7 +114,7 @@ export const AddEditProductScreen: React.FC = () => {
     }
     setBrandPrices([
       ...brandPrices,
-      {id: generateId(), shopId: state.shops[0].id, brand: '', price: ''},
+      {id: generateId(), shopId: state.shops[0].id, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType},
     ]);
   };
 
@@ -118,7 +124,7 @@ export const AddEditProductScreen: React.FC = () => {
 
   const handleUpdateBrandPrice = (
     id: string,
-    field: 'shopId' | 'brand' | 'price',
+    field: 'shopId' | 'brand' | 'price' | 'quantity' | 'unit',
     value: string,
   ) => {
     setBrandPrices(
@@ -162,6 +168,7 @@ export const AddEditProductScreen: React.FC = () => {
     brandPrices.forEach(bp => {
       const price = parseFloat(bp.price);
       if (!isNaN(price) && price > 0 && bp.brand.trim()) {
+        const qty = parseFloat(bp.quantity);
         const shopProductBrand: ShopProductBrand = {
           id: bp.existingId || generateId(),
           productId: finalProductId,
@@ -169,6 +176,8 @@ export const AddEditProductScreen: React.FC = () => {
           brand: bp.brand.trim(),
           price,
           currency: state.settings.currency,
+          quantity: !isNaN(qty) && qty > 0 ? qty : undefined,
+          unit: !isNaN(qty) && qty > 0 ? bp.unit : undefined,
           lastUpdated: now,
         };
 
@@ -311,6 +320,46 @@ export const AddEditProductScreen: React.FC = () => {
               />
             </View>
           </View>
+
+          {/* Quantity and Unit for unit price comparison */}
+          <Text style={[styles.fieldLabel, {color: colors.textSecondary, marginTop: Spacing.xs}]}>
+            Quantity (optional - for unit price comparison)
+          </Text>
+          <View style={styles.brandPriceRow}>
+            <View style={styles.quantityInput}>
+              <Input
+                label="Quantity"
+                value={entry.quantity}
+                onChangeText={v => handleUpdateBrandPrice(entry.id, 'quantity', v)}
+                placeholder="e.g., 12"
+                keyboardType="decimal-pad"
+              />
+            </View>
+            <View style={styles.unitSelector}>
+              <Text style={[styles.fieldLabel, {color: colors.textSecondary}]}>Unit</Text>
+              <View style={styles.unitChips}>
+                {(['pcs', 'g', 'kg', 'ml', 'L'] as UnitType[]).map(u => {
+                  const isSelected = entry.unit === u;
+                  return (
+                    <TouchableOpacity
+                      key={u}
+                      style={[
+                        styles.unitChip,
+                        {
+                          backgroundColor: isSelected ? colors.primary : colors.surface,
+                          borderColor: isSelected ? colors.primary : colors.border,
+                        },
+                      ]}
+                      onPress={() => handleUpdateBrandPrice(entry.id, 'unit', u)}>
+                      <Text style={[styles.unitChipText, {color: isSelected ? colors.white : colors.text}]}>
+                        {u}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
         </View>
       </Card>
     );
@@ -443,6 +492,7 @@ export const AddEditProductScreen: React.FC = () => {
                     key={e.id}
                     style={[styles.summaryBrand, {color: colors.textSecondary}]}>
                     • {e.brand}: {formatPrice(parseFloat(e.price), state.settings.currency)}
+                    {e.quantity && parseFloat(e.quantity) > 0 ? ` (${e.quantity} ${e.unit})` : ''}
                   </Text>
                 ))}
               </View>
@@ -618,6 +668,29 @@ const styles = StyleSheet.create({
   },
   priceInput: {
     flex: 1,
+  },
+  quantityInput: {
+    flex: 1,
+  },
+  unitSelector: {
+    flex: 2,
+  },
+  unitChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: Spacing.sm,
+    paddingBottom: Spacing.sm,
+  },
+  unitChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  unitChipText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   addBrandButton: {
     borderWidth: 1.5,

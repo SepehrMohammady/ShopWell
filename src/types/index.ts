@@ -22,6 +22,17 @@ export interface Product {
   updatedAt: string;
 }
 
+// Unit types for quantity measurement
+export type UnitType = 'pcs' | 'g' | 'kg' | 'ml' | 'L';
+
+export const UnitLabels: Record<UnitType, string> = {
+  pcs: 'pieces',
+  g: 'grams',
+  kg: 'kilograms',
+  ml: 'milliliters',
+  L: 'liters',
+};
+
 // Shop-Product-Brand relationship with price
 // A product can have multiple brands at each shop, each with its own price
 export interface ShopProductBrand {
@@ -31,6 +42,8 @@ export interface ShopProductBrand {
   brand: string;
   price: number;
   currency: string;
+  quantity?: number;
+  unit?: UnitType;
   lastUpdated: string;
 }
 

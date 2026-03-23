@@ -21,7 +21,7 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import {RootStackParamList, ProductCategoryInfo} from '../types';
 import {Spacing} from '../constants';
-import {formatPrice, getAllPricesForProduct, getPriceRange} from '../utils/priceHelper';
+import {formatPrice, formatUnitPrice, getAllPricesForProduct, getPriceRange} from '../utils/priceHelper';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'ProductDetail'>;
 type RouteType = RouteProp<RootStackParamList, 'ProductDetail'>;
@@ -231,23 +231,38 @@ export const ProductDetailScreen: React.FC = () => {
 
                 {/* Brand list */}
                 <View style={[styles.brandList, {borderTopColor: colors.border}]}>
-                  {shopData.brands.map((brand, brandIndex) => (
-                    <View key={brand.id} style={styles.brandRow}>
-                      <View style={styles.brandInfo}>
-                        <Text style={[styles.brandName, {color: colors.text}]}>
-                          {brand.brand}
-                        </Text>
-                        {brand.price === shopData.cheapestPrice && shopData.brands.length > 1 && (
-                          <Text style={[styles.cheapestAtShop, {color: colors.success}]}>
-                            cheapest here
+                  {shopData.brands.map((brand, brandIndex) => {
+                    const unitPriceStr = formatUnitPrice(brand, state.settings.currency);
+                    return (
+                      <View key={brand.id} style={styles.brandRow}>
+                        <View style={styles.brandInfo}>
+                          <Text style={[styles.brandName, {color: colors.text}]}>
+                            {brand.brand}
                           </Text>
-                        )}
+                          {brand.price === shopData.cheapestPrice && shopData.brands.length > 1 && (
+                            <Text style={[styles.cheapestAtShop, {color: colors.success}]}>
+                              cheapest here
+                            </Text>
+                          )}
+                        </View>
+                        <View style={styles.brandPriceColumn}>
+                          <Text style={[styles.brandPrice, {color: colors.text}]}>
+                            {formatPrice(brand.price, state.settings.currency)}
+                          </Text>
+                          {unitPriceStr && (
+                            <Text style={[styles.unitPriceText, {color: colors.textSecondary}]}>
+                              {unitPriceStr}
+                            </Text>
+                          )}
+                          {brand.quantity && brand.unit && (
+                            <Text style={[styles.quantityText, {color: colors.textLight}]}>
+                              {brand.quantity} {brand.unit}
+                            </Text>
+                          )}
+                        </View>
                       </View>
-                      <Text style={[styles.brandPrice, {color: colors.text}]}>
-                        {formatPrice(brand.price, state.settings.currency)}
-                      </Text>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               </View>
             </Card>
@@ -443,6 +458,17 @@ const styles = StyleSheet.create({
   brandPrice: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  brandPriceColumn: {
+    alignItems: 'flex-end',
+  },
+  unitPriceText: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  quantityText: {
+    fontSize: 10,
+    marginTop: 1,
   },
   emptyState: {
     alignItems: 'center',

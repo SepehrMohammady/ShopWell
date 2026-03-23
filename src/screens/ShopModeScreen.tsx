@@ -28,6 +28,7 @@ import {
 import {Spacing} from '../constants';
 import {
   formatPrice,
+  formatUnitPrice,
   getCheaperAlternatives,
   getCheapestBrandAtShop,
   getCheapestOption,
@@ -285,16 +286,33 @@ export const ShopModeScreen: React.FC = () => {
         {/* Brand list */}
         {item.brands.length > 1 && (
           <View style={[styles.brandList, {borderTopColor: colors.border}]}>
-            {item.brands.slice(0, 3).map((brand, index) => (
-              <View key={brand.id} style={styles.brandRow}>
-                <Text style={[styles.brandName, {color: colors.textSecondary}]}>
-                  {brand.brand}
-                </Text>
-                <Text style={[styles.brandPrice, {color: colors.text}]}>
-                  {formatPrice(brand.price, state.settings.currency)}
-                </Text>
-              </View>
-            ))}
+            {item.brands.slice(0, 3).map((brand, index) => {
+              const unitPriceStr = formatUnitPrice(brand, state.settings.currency);
+              return (
+                <View key={brand.id} style={styles.brandRow}>
+                  <View>
+                    <Text style={[styles.brandName, {color: colors.textSecondary}]}>
+                      {brand.brand}
+                    </Text>
+                    {brand.quantity && brand.unit && (
+                      <Text style={[styles.brandQuantity, {color: colors.textLight}]}>
+                        {brand.quantity} {brand.unit}
+                      </Text>
+                    )}
+                  </View>
+                  <View style={{alignItems: 'flex-end'}}>
+                    <Text style={[styles.brandPrice, {color: colors.text}]}>
+                      {formatPrice(brand.price, state.settings.currency)}
+                    </Text>
+                    {unitPriceStr && (
+                      <Text style={[styles.brandUnitPrice, {color: colors.textSecondary}]}>
+                        {unitPriceStr}
+                      </Text>
+                    )}
+                  </View>
+                </View>
+              );
+            })}
             {item.brands.length > 3 && (
               <Text style={[styles.moreOptions, {color: colors.textLight}]}>
                 +{item.brands.length - 3} more option{item.brands.length - 3 !== 1 ? 's' : ''}
@@ -520,6 +538,14 @@ const styles = StyleSheet.create({
   brandPrice: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  brandQuantity: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  brandUnitPrice: {
+    fontSize: 11,
+    marginTop: 1,
   },
   moreOptions: {
     fontSize: 12,
