@@ -2,7 +2,7 @@
  * Shops Screen
  */
 
-import React from 'react';
+import React, {useMemo} from 'react';
 import {View, FlatList, StyleSheet, Text} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -87,10 +87,18 @@ const ShopsScreen: React.FC = () => {
     );
   }
 
+  const sortedShops = useMemo(() =>
+    [...state.shops].sort((a, b) => {
+      if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    }),
+    [state.shops],
+  );
+
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
       <FlatList
-        data={state.shops}
+        data={sortedShops}
         renderItem={renderShopItem}
         keyExtractor={item => item.id}
         contentContainerStyle={styles.listContainer}

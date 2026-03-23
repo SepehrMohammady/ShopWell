@@ -3,7 +3,7 @@
  * Supports multiple brands with different prices at each shop
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo, useCallback} from 'react';
 import {
   View,
   Text,
@@ -83,6 +83,15 @@ export const AddEditProductScreen: React.FC = () => {
   // Shop picker modal state
   const [activePickerEntryId, setActivePickerEntryId] = useState<string | null>(null);
 
+  // Sorted shops: favorites first, then alphabetical
+  const sortedShops = useMemo(() =>
+    [...state.shops].sort((a, b) => {
+      if (a.isFavorite !== b.isFavorite) return a.isFavorite ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    }),
+    [state.shops],
+  );
+
   // Load existing brand prices when editing
   useEffect(() => {
     if (isEditing && productId) {
@@ -109,12 +118,19 @@ export const AddEditProductScreen: React.FC = () => {
 
   const handleAddBrandPrice = () => {
     if (state.shops.length === 0) {
-      Alert.alert('No Shops', 'Please add a shop first before adding prices.');
+      Alert.alert(
+        'No Shops',
+        'You need to add a shop first. Would you like to create one now?',
+        [
+          {text: 'Cancel', style: 'cancel'},
+          {text: 'Add Shop', onPress: () => navigation.navigate('AddEditShop', {})},
+        ],
+      );
       return;
     }
     setBrandPrices([
       ...brandPrices,
-      {id: generateId(), shopId: state.shops[0].id, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType},
+      {id: generateId(), shopId: sortedShops[0].id, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType},
     ]);
   };
 
@@ -530,8 +546,19 @@ export const AddEditProductScreen: React.FC = () => {
               </TouchableOpacity>
             </View>
             <FlatList
-              data={state.shops}
+              data={sortedShops}
               keyExtractor={s => s.id}
+              ListHeaderComponent={() => (
+                <TouchableOpacity
+                  style={[styles.modalItem, {borderBottomWidth: 1, borderBottomColor: colors.border}]}
+                  onPress={() => {
+                    setActivePickerEntryId(null);
+                    navigation.navigate('AddEditShop', {});
+                  }}>
+                  <MaterialCommunityIcons name="plus-circle" size={20} color={colors.primary} />
+                  <Text style={[styles.modalItemText, {color: colors.primary, fontWeight: '600'}]}>Add New Shop</Text>
+                </TouchableOpacity>
+              )}
               renderItem={({item: s}) => {
                 const isSelected = activePickerEntryId ? brandPrices.find(bp => bp.id === activePickerEntryId)?.shopId === s.id : false;
                 return (
@@ -544,8 +571,13 @@ export const AddEditProductScreen: React.FC = () => {
                       setActivePickerEntryId(null);
                     }}>
                     <MaterialCommunityIcons name="store" size={20} color={isSelected ? colors.primary : colors.textSecondary} />
-                    <Text style={[styles.modalItemText, {color: colors.text}, isSelected && {color: colors.primary, fontWeight: '600'}]}>{s.name}</Text>
-                    {isSelected && <MaterialCommunityIcons name="check" size={20} color={colors.primary} />}
+                    <Text style={[styles.modalItemText, {color: colors.text}, isSelected && {color: colors.primary, fontWeight: '600'}]}>
+                      {s.name}
+                    </Text>
+                    <View style={styles.modalItemRight}>
+                      {s.isFavorite && <MaterialCommunityIcons name="star" size={14} color="#FFD700" />}
+                      {isSelected && <MaterialCommunityIcons name="check" size={20} color={colors.primary} />}
+                    </View>
                   </TouchableOpacity>
                 );
               }}
@@ -766,5 +798,10 @@ const styles = StyleSheet.create({
   modalItemText: {
     flex: 1,
     fontSize: 16,
+  },
+  modalItemRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
 });
