@@ -97,26 +97,6 @@ npm run windows   # Windows
 
 ---
 
-## 📋 Version Highlights
-
-| Version | Highlights |
-|---|---|
-| **0.0.5** | Product availability tracking, multi-brand pricing, best shop recommendations |
-| **0.0.4** | Product management, shop mode with price comparisons, location-based notification infrastructure |
-| **0.0.3** | Dark mode support, custom app icons, crash fixes |
-| **0.0.2** | Android APK build, TypeScript fixes |
-| **0.0.1** | Initial release — shopping lists, shops, schedules, offline storage |
-
-See [CHANGELOG.md](./CHANGELOG.md) for the full history.
-
----
-
-## 📄 License
-
-This project is private. All rights reserved.
-
----
-
 <div align="center">
   Made with ❤️ by the ShopWell Team
 </div>
