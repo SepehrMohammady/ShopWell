@@ -4,7 +4,6 @@
 
 import React, {createContext, useContext, useReducer, useEffect} from 'react';
 import {
-  ShoppingList,
   Shop,
   Schedule,
   Product,
@@ -18,9 +17,6 @@ import {StorageService} from '../services/StorageService';
 // Action types
 type Action =
   | {type: 'SET_STATE'; payload: AppState}
-  | {type: 'ADD_LIST'; payload: ShoppingList}
-  | {type: 'UPDATE_LIST'; payload: ShoppingList}
-  | {type: 'DELETE_LIST'; payload: string}
   | {type: 'ADD_SHOP'; payload: Shop}
   | {type: 'UPDATE_SHOP'; payload: Shop}
   | {type: 'DELETE_SHOP'; payload: string}
@@ -39,10 +35,6 @@ type Action =
 interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<Action>;
-  // Shopping Lists
-  addList: (list: ShoppingList) => void;
-  updateList: (list: ShoppingList) => void;
-  deleteList: (id: string) => void;
   // Shops
   addShop: (shop: Shop) => void;
   updateShop: (shop: Shop) => void;
@@ -89,28 +81,6 @@ function appReducer(state: AppState, action: Action): AppState {
         ...initialState,
         ...action.payload,
         settings: {...defaultSettings, ...action.payload.settings},
-      };
-
-    case 'ADD_LIST':
-      return {
-        ...state,
-        shoppingLists: [...state.shoppingLists, action.payload],
-      };
-
-    case 'UPDATE_LIST':
-      return {
-        ...state,
-        shoppingLists: state.shoppingLists.map(list =>
-          list.id === action.payload.id ? action.payload : list,
-        ),
-      };
-
-    case 'DELETE_LIST':
-      return {
-        ...state,
-        shoppingLists: state.shoppingLists.filter(
-          list => list.id !== action.payload,
-        ),
       };
 
     case 'ADD_SHOP':
@@ -236,19 +206,6 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
   useEffect(() => {
     StorageService.saveAppState(state);
   }, [state]);
-
-  // Shopping Lists
-  const addList = (list: ShoppingList) => {
-    dispatch({type: 'ADD_LIST', payload: list});
-  };
-
-  const updateList = (list: ShoppingList) => {
-    dispatch({type: 'UPDATE_LIST', payload: list});
-  };
-
-  const deleteList = (id: string) => {
-    dispatch({type: 'DELETE_LIST', payload: id});
-  };
 
   // Shops
   const addShop = (shop: Shop) => {
@@ -385,9 +342,6 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
       value={{
         state,
         dispatch,
-        addList,
-        updateList,
-        deleteList,
         addShop,
         updateShop,
         deleteShop,

@@ -6,11 +6,9 @@ import React from 'react';
 import {createStackNavigator} from '@react-navigation/stack';
 import {RootStackParamList} from '../types';
 import MainTabNavigator from './MainTabNavigator';
-import AddEditListScreen from '../screens/AddEditListScreen';
 import AddEditShopScreen from '../screens/AddEditShopScreen';
 import AddEditScheduleScreen from '../screens/AddEditScheduleScreen';
 import {AddEditProductScreen} from '../screens/AddEditProductScreen';
-import ListDetailScreen from '../screens/ListDetailScreen';
 import ShopDetailScreen from '../screens/ShopDetailScreen';
 import {ProductDetailScreen} from '../screens/ProductDetailScreen';
 import {ShopModeScreen} from '../screens/ShopModeScreen';
@@ -45,14 +43,6 @@ const RootNavigator: React.FC = () => {
         options={{headerShown: false}}
       />
       <Stack.Screen
-        name="AddEditList"
-        component={AddEditListScreen}
-        options={({route}) => ({
-          title: route.params?.listId ? 'Edit List' : 'New List',
-          presentation: 'modal',
-        })}
-      />
-      <Stack.Screen
         name="AddEditShop"
         component={AddEditShopScreen}
         options={({route}) => ({
@@ -75,11 +65,6 @@ const RootNavigator: React.FC = () => {
           title: route.params?.productId ? 'Edit Product' : 'New Product',
           presentation: 'modal',
         })}
-      />
-      <Stack.Screen
-        name="ListDetail"
-        component={ListDetailScreen}
-        options={{title: 'Shopping List'}}
       />
       <Stack.Screen
         name="ShopDetail"
