@@ -98,5 +98,5 @@ npm run windows   # Windows
 ---
 
 <div align="center">
-  Made with ❤️ by the ShopWell Team
+  Made with ❤️
 </div>
