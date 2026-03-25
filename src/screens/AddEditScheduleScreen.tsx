@@ -8,7 +8,6 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  Alert,
   Text,
   TouchableOpacity,
   Platform,
@@ -22,7 +21,7 @@ import {RootStackParamList, Schedule, ProductCategoryInfo, ProductCategory} from
 import {useApp} from '../context/AppContext';
 import {scheduleReminderNotification, cancelScheduleNotification} from '../services/NotificationService';
 import {useTheme} from '../context/ThemeContext';
-import {Button, Input, Card} from '../components/common';
+import {Button, Input, Card, useAlert} from '../components/common';
 import {Spacing, FontSize} from '../constants';
 import {generateId, getCurrentTimestamp, formatDate} from '../utils';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -50,6 +49,7 @@ const AddEditScheduleScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const {state, addSchedule, updateSchedule, deleteSchedule} = useApp();
   const {colors} = useTheme();
+  const {showAlert} = useAlert();
 
   const scheduleId = route.params?.scheduleId;
   const existingSchedule = scheduleId
@@ -178,7 +178,7 @@ const AddEditScheduleScreen: React.FC = () => {
 
   const handleSave = () => {
     if (!title.trim()) {
-      Alert.alert('Error', 'Please enter a title');
+      showAlert({title: 'Error', message: 'Please enter a title'});
       return;
     }
 
@@ -223,10 +223,10 @@ const AddEditScheduleScreen: React.FC = () => {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Schedule',
-      'Are you sure you want to delete this schedule?',
-      [
+    showAlert({
+      title: 'Delete Schedule',
+      message: 'Are you sure you want to delete this schedule?',
+      buttons: [
         {text: 'Cancel', style: 'cancel'},
         {
           text: 'Delete',
@@ -237,7 +237,7 @@ const AddEditScheduleScreen: React.FC = () => {
           },
         },
       ],
-    );
+    });
   };
 
   const handleToggleComplete = () => {

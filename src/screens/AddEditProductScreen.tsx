@@ -10,7 +10,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Modal,
   FlatList,
   Image,
@@ -34,6 +33,7 @@ import {
   UnitType,
   UnitLabels,
 } from '../types';
+import {useAlert} from '../components/common';
 import {Spacing} from '../constants';
 import {generateId} from '../utils/helpers';
 import {formatPrice} from '../utils/priceHelper';
@@ -65,6 +65,7 @@ export const AddEditProductScreen: React.FC = () => {
     deleteShopProductBrandsForProduct,
   } = useApp();
   const {colors} = useTheme();
+  const {showAlert} = useAlert();
 
   const productId = route.params?.productId;
   const isEditing = !!productId;
@@ -122,14 +123,14 @@ export const AddEditProductScreen: React.FC = () => {
 
   const handleAddBrandPrice = () => {
     if (state.shops.length === 0) {
-      Alert.alert(
-        'No Shops',
-        'You need to add a shop first. Would you like to create one now?',
-        [
+      showAlert({
+        title: 'No Shops',
+        message: 'You need to add a shop first. Would you like to create one now?',
+        buttons: [
           {text: 'Cancel', style: 'cancel'},
           {text: 'Add Shop', onPress: () => navigation.navigate('AddEditShop', {})},
         ],
-      );
+      });
       return;
     }
     setBrandPrices([
@@ -154,7 +155,7 @@ export const AddEditProductScreen: React.FC = () => {
 
   const handleSave = () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter a product name');
+      showAlert({title: 'Error', message: 'Please enter a product name'});
       return;
     }
 
@@ -222,10 +223,10 @@ export const AddEditProductScreen: React.FC = () => {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Product',
-      'Are you sure you want to delete this product? This will also remove all price data.',
-      [
+    showAlert({
+      title: 'Delete Product',
+      message: 'Are you sure you want to delete this product? This will also remove all price data.',
+      buttons: [
         {text: 'Cancel', style: 'cancel'},
         {
           text: 'Delete',
@@ -238,7 +239,7 @@ export const AddEditProductScreen: React.FC = () => {
           },
         },
       ],
-    );
+    });
   };
 
   const categories: ProductCategory[] = [
@@ -403,7 +404,7 @@ export const AddEditProductScreen: React.FC = () => {
       <TouchableOpacity
         style={[styles.imagePicker, {backgroundColor: colors.surface, borderColor: colors.border}]}
         onPress={() => {
-          Alert.alert('Add Photo', 'Choose an option', [
+          showAlert({title: 'Add Photo', message: 'Choose an option', buttons: [
             {
               text: 'Camera',
               onPress: () => {
@@ -427,7 +428,7 @@ export const AddEditProductScreen: React.FC = () => {
               },
             },
             {text: 'Cancel', style: 'cancel'},
-          ]);
+          ]});
         }}>
         {imageUri ? (
           <View style={styles.imagePreviewContainer}>

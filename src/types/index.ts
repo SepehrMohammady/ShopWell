@@ -108,7 +108,6 @@ export interface Schedule {
 // App Settings
 export interface AppSettings {
   locationNotificationsEnabled: boolean;
-  defaultGeofenceRadius: number; // meters
   nearbyShopAction: 'suggest' | 'auto-open'; // What to do when near a shop
   currency: string;
   currencies: string[]; // User's available currencies
@@ -170,7 +169,6 @@ export const PREDEFINED_CURRENCIES = [
 // Default app settings
 export const defaultSettings: AppSettings = {
   locationNotificationsEnabled: false,
-  defaultGeofenceRadius: 200,
   nearbyShopAction: 'suggest',
   currency: '€',
   currencies: ['€', '$', '£', '¥', '₹'],

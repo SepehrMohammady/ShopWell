@@ -7,7 +7,6 @@ import {
   View,
   StyleSheet,
   ScrollView,
-  Alert,
   Text,
   TouchableOpacity,
   Modal,
@@ -21,7 +20,7 @@ import MapView, {PROVIDER_GOOGLE} from 'react-native-maps';
 import {RootStackParamList, Shop, ShopCategory, ShopCategoryInfo} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
-import {Button, Input, Card} from '../components/common';
+import {Button, Input, Card, useAlert} from '../components/common';
 import {Spacing, FontSize, CategoryColors} from '../constants';
 import {generateId, getCurrentTimestamp} from '../utils';
 
@@ -35,6 +34,7 @@ const AddEditShopScreen: React.FC = () => {
   const route = useRoute<RouteProps>();
   const {state, addShop, updateShop, deleteShop} = useApp();
   const {colors} = useTheme();
+  const {showAlert} = useAlert();
 
   const shopId = route.params?.shopId;
   const existingShop = shopId
@@ -61,7 +61,7 @@ const AddEditShopScreen: React.FC = () => {
     existingShop?.longitude?.toString() || '',
   );
   const [geofenceRadius, setGeofenceRadius] = useState(
-    existingShop?.geofenceRadius?.toString() || state.settings.defaultGeofenceRadius.toString(),
+    existingShop?.geofenceRadius?.toString() || '200',
   );
   const [notifyOnNearby, setNotifyOnNearby] = useState(
     existingShop?.notifyOnNearby || false,
@@ -104,7 +104,7 @@ const AddEditShopScreen: React.FC = () => {
         setIsGettingLocation(false);
       },
       (error) => {
-        Alert.alert('Error', 'Could not get your location. Please make sure location services are enabled.');
+        showAlert({title: 'Error', message: 'Could not get your location. Please make sure location services are enabled.'});
         setIsGettingLocation(false);
       },
       {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
@@ -123,7 +123,7 @@ const AddEditShopScreen: React.FC = () => {
 
   const handleSave = () => {
     if (!name.trim()) {
-      Alert.alert('Error', 'Please enter a shop name');
+      showAlert({title: 'Error', message: 'Please enter a shop name'});
       return;
     }
 
@@ -144,7 +144,7 @@ const AddEditShopScreen: React.FC = () => {
       // Location fields
       latitude: !isNaN(lat) ? lat : undefined,
       longitude: !isNaN(lng) ? lng : undefined,
-      geofenceRadius: !isNaN(radius) && radius > 0 ? radius : state.settings.defaultGeofenceRadius,
+      geofenceRadius: !isNaN(radius) && radius > 0 ? radius : 200,
       notifyOnNearby: notifyOnNearby && !isNaN(lat) && !isNaN(lng),
       createdAt: existingShop?.createdAt || now,
       updatedAt: now,
@@ -160,10 +160,10 @@ const AddEditShopScreen: React.FC = () => {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Shop',
-      'Are you sure you want to delete this shop?',
-      [
+    showAlert({
+      title: 'Delete Shop',
+      message: 'Are you sure you want to delete this shop?',
+      buttons: [
         {text: 'Cancel', style: 'cancel'},
         {
           text: 'Delete',
@@ -174,7 +174,7 @@ const AddEditShopScreen: React.FC = () => {
           },
         },
       ],
-    );
+    });
   };
 
   return (
@@ -357,7 +357,7 @@ const AddEditShopScreen: React.FC = () => {
                       Notify when nearby
                     </Text>
                     <Text style={[styles.notifyDescription, {color: colors.textSecondary}]}>
-                      Get a notification when you're within {geofenceRadius || state.settings.defaultGeofenceRadius}m
+                      Get a notification when you're within {geofenceRadius || '200'}m
                     </Text>
                   </View>
                   <MaterialCommunityIcons

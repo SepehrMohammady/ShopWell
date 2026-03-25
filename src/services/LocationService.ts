@@ -4,7 +4,7 @@
  * react-native-background-geolocation packages to be installed
  */
 
-import {Platform, PermissionsAndroid, Alert, Linking} from 'react-native';
+import {Platform, PermissionsAndroid, Linking} from 'react-native';
 import {Shop} from '../types';
 
 // Permission states
@@ -92,14 +92,7 @@ export const checkLocationPermission = async (): Promise<boolean> => {
  * Open app settings for manual permission granting
  */
 export const openLocationSettings = () => {
-  Alert.alert(
-    'Location Permission Required',
-    'Please enable location permissions in your device settings to receive notifications when near shops.',
-    [
-      {text: 'Cancel', style: 'cancel'},
-      {text: 'Open Settings', onPress: () => Linking.openSettings()},
-    ],
-  );
+  Linking.openSettings();
 };
 
 /**

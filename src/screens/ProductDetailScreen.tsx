@@ -10,7 +10,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Alert,
   Image,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
@@ -18,6 +17,7 @@ import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
+import {useAlert} from '../components/common';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import {RootStackParamList, ProductCategoryInfo} from '../types';
@@ -32,6 +32,7 @@ export const ProductDetailScreen: React.FC = () => {
   const route = useRoute<RouteType>();
   const {state, deleteProduct, toggleProductAvailability} = useApp();
   const {colors} = useTheme();
+  const {showAlert} = useAlert();
 
   const productId = route.params.productId;
   const product = state.products.find(p => p.id === productId);
@@ -55,10 +56,10 @@ export const ProductDetailScreen: React.FC = () => {
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete Product',
-      'Are you sure you want to delete this product? This will also remove all price data.',
-      [
+    showAlert({
+      title: 'Delete Product',
+      message: 'Are you sure you want to delete this product? This will also remove all price data.',
+      buttons: [
         {text: 'Cancel', style: 'cancel'},
         {
           text: 'Delete',
@@ -69,7 +70,7 @@ export const ProductDetailScreen: React.FC = () => {
           },
         },
       ],
-    );
+    });
   };
 
   const handleToggleAvailability = () => {

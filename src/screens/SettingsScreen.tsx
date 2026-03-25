@@ -3,8 +3,8 @@
  */
 
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity, Switch, Image, Modal, TextInput} from 'react-native';
-import {Card} from '../components/common';
+import {View, Text, StyleSheet, ScrollView, Linking, TouchableOpacity, Switch, Image} from 'react-native';
+import {Card, useAlert} from '../components/common';
 import {Spacing, FontSize, APP_VERSION} from '../constants';
 import {StorageService} from '../services/StorageService';
 import {exportAndShare, pickAndImport} from '../services/BackupService';
@@ -13,7 +13,6 @@ import {useTheme, ThemeMode} from '../context/ThemeContext';
 import {
   requestLocationPermission,
   checkLocationPermission,
-  openLocationSettings,
 } from '../services/LocationService';
 import {defaultSettings, PREDEFINED_CURRENCIES} from '../types';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -21,27 +20,26 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 const SettingsScreen: React.FC = () => {
   const {state, dispatch, updateSettings} = useApp();
   const {colors, themeMode, setThemeMode} = useTheme();
+  const {showAlert} = useAlert();
   const [isCheckingPermission, setIsCheckingPermission] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [showCustomCurrencyModal, setShowCustomCurrencyModal] = useState(false);
-  const [customCurrencyInput, setCustomCurrencyInput] = useState('');
 
   const handleExport = async () => {
     setIsExporting(true);
     try {
       await exportAndShare(state);
     } catch (error: any) {
-      Alert.alert('Export Failed', error?.message || 'Could not export data.');
+      showAlert({title: 'Export Failed', message: error?.message || 'Could not export data.'});
     }
     setIsExporting(false);
   };
 
   const handleImport = async () => {
-    Alert.alert(
-      'Restore Backup',
-      'This will replace ALL current data with the backup. Are you sure?',
-      [
+    showAlert({
+      title: 'Restore Backup',
+      message: 'This will replace ALL current data with the backup. Are you sure?',
+      buttons: [
         {text: 'Cancel', style: 'cancel'},
         {
           text: 'Restore',
@@ -52,19 +50,19 @@ const SettingsScreen: React.FC = () => {
               const importedState = await pickAndImport();
               if (importedState) {
                 dispatch({type: 'SET_STATE', payload: importedState});
-                Alert.alert(
-                  'Restore Complete',
-                  `Restored ${importedState.products.length} products, ${importedState.shops.length} shops, ${importedState.schedules.length} schedules, and ${importedState.shopProductBrands.length} price entries.`,
-                );
+                showAlert({
+                  title: 'Restore Complete',
+                  message: `Restored ${importedState.products.length} products, ${importedState.shops.length} shops, ${importedState.schedules.length} schedules, and ${importedState.shopProductBrands.length} price entries.`,
+                });
               }
             } catch (error: any) {
-              Alert.alert('Restore Failed', error?.message || 'Could not import data.');
+              showAlert({title: 'Restore Failed', message: error?.message || 'Could not import data.'});
             }
             setIsImporting(false);
           },
         },
       ],
-    );
+    });
   };
 
   const handleToggleLocationNotifications = async () => {
@@ -81,17 +79,24 @@ const SettingsScreen: React.FC = () => {
         const shopsWithLocation = state.shops.filter(
           s => s.latitude && s.longitude && s.notifyOnNearby,
         );
-        Alert.alert(
-          'Nearby Shop Detection Enabled',
-          `Will check proximity to ${shopsWithLocation.length} shop${shopsWithLocation.length !== 1 ? 's' : ''} while the app is open.`,
-        );
+        showAlert({
+          title: 'Nearby Shop Detection Enabled',
+          message: `Will check proximity to ${shopsWithLocation.length} shop${shopsWithLocation.length !== 1 ? 's' : ''} while the app is open.`,
+        });
       } else if (locationStatus === 'never_ask_again') {
-        openLocationSettings();
+        showAlert({
+          title: 'Location Permission Required',
+          message: 'Please enable location permissions in your device settings to receive notifications when near shops.',
+          buttons: [
+            {text: 'Cancel', style: 'cancel'},
+            {text: 'Open Settings', onPress: () => Linking.openSettings()},
+          ],
+        });
       } else {
-        Alert.alert(
-          'Permission Denied',
-          'Location permission is required to detect nearby shops.',
-        );
+        showAlert({
+          title: 'Permission Denied',
+          message: 'Location permission is required to detect nearby shops.',
+        });
       }
       
       setIsCheckingPermission(false);
@@ -100,15 +105,11 @@ const SettingsScreen: React.FC = () => {
     }
   };
 
-  const handleRadiusChange = (radius: number) => {
-    updateSettings({defaultGeofenceRadius: radius});
-  };
-
   const handleClearData = () => {
-    Alert.alert(
-      'Clear All Data',
-      'Are you sure you want to delete all your shopping lists, shops, schedules, and products? This action cannot be undone.',
-      [
+    showAlert({
+      title: 'Clear All Data',
+      message: 'Are you sure you want to delete all your shopping lists, shops, schedules, and products? This action cannot be undone.',
+      buttons: [
         {text: 'Cancel', style: 'cancel'},
         {
           text: 'Delete',
@@ -126,11 +127,11 @@ const SettingsScreen: React.FC = () => {
                 settings: defaultSettings,
               },
             });
-            Alert.alert('Success', 'All data has been cleared.');
+            showAlert({title: 'Success', message: 'All data has been cleared.'});
           },
         },
       ],
-    );
+    });
   };
 
   const themeModes: {label: string; value: ThemeMode}[] = [
@@ -154,7 +155,7 @@ const SettingsScreen: React.FC = () => {
       handleCreateCustomCurrency();
       return;
     }
-    const buttons = available.slice(0, 8).map(c => ({
+    const buttons: {text: string; onPress?: () => void; style?: 'default' | 'cancel' | 'destructive'}[] = available.slice(0, 8).map(c => ({
       text: c,
       onPress: () => {
         const updated = [...userCurrencies, c];
@@ -165,38 +166,38 @@ const SettingsScreen: React.FC = () => {
       text: 'Custom...',
       onPress: () => handleCreateCustomCurrency(),
     });
-    buttons.push({text: 'Cancel', onPress: () => {}});
-    Alert.alert('Add Currency', 'Choose a currency to add', buttons);
+    buttons.push({text: 'Cancel', style: 'cancel'});
+    showAlert({title: 'Add Currency', message: 'Choose a currency to add', buttons});
   };
 
   const handleCreateCustomCurrency = () => {
-    setCustomCurrencyInput('');
-    setShowCustomCurrencyModal(true);
-  };
-
-  const handleConfirmCustomCurrency = () => {
-    const symbol = customCurrencyInput.trim();
-    if (!symbol) {
-      setShowCustomCurrencyModal(false);
-      return;
-    }
-    if (symbol.length > 5) {
-      Alert.alert('Error', 'Currency symbol should be 5 characters or less.');
-      return;
-    }
-    if (userCurrencies.includes(symbol)) {
-      Alert.alert('Already exists', 'This currency is already in your list.');
-      setShowCustomCurrencyModal(false);
-      return;
-    }
-    const updated = [...userCurrencies, symbol];
-    updateSettings({currencies: updated, currency: symbol});
-    setShowCustomCurrencyModal(false);
+    showAlert({
+      title: 'Custom Currency',
+      message: 'Enter a currency symbol (e.g., ₿, MAD, BTC)',
+      input: {
+        placeholder: 'Symbol',
+        maxLength: 5,
+        onSubmit: (symbol: string) => {
+          const trimmed = symbol.trim();
+          if (!trimmed) return;
+          if (trimmed.length > 5) {
+            showAlert({title: 'Error', message: 'Currency symbol should be 5 characters or less.'});
+            return;
+          }
+          if (userCurrencies.includes(trimmed)) {
+            showAlert({title: 'Already exists', message: 'This currency is already in your list.'});
+            return;
+          }
+          const updated = [...userCurrencies, trimmed];
+          updateSettings({currencies: updated, currency: trimmed});
+        },
+      },
+    });
   };
 
   const handleRemoveCurrency = (c: string) => {
     if (userCurrencies.length <= 1) {
-      Alert.alert('Cannot Remove', 'You must have at least one currency.');
+      showAlert({title: 'Cannot Remove', message: 'You must have at least one currency.'});
       return;
     }
     const updated = userCurrencies.filter(cur => cur !== c);
@@ -319,43 +320,6 @@ const SettingsScreen: React.FC = () => {
               <View style={[styles.divider, {backgroundColor: colors.border}]} />
               <View style={styles.settingRow}>
                 <Text style={[styles.settingLabel, {color: colors.text}]}>
-                  Default detection radius
-                </Text>
-              </View>
-              <View style={styles.radiusSelector}>
-                {[100, 200, 500, 1000].map((radius) => (
-                  <TouchableOpacity
-                    key={radius}
-                    style={[
-                      styles.radiusOption,
-                      {
-                        backgroundColor: state.settings.defaultGeofenceRadius === radius
-                          ? colors.primary
-                          : colors.surface,
-                        borderColor: state.settings.defaultGeofenceRadius === radius
-                          ? colors.primary
-                          : colors.border,
-                      },
-                    ]}
-                    onPress={() => handleRadiusChange(radius)}
-                  >
-                    <Text
-                      style={[
-                        styles.radiusOptionText,
-                        {color: state.settings.defaultGeofenceRadius === radius
-                          ? colors.white
-                          : colors.text},
-                      ]}
-                    >
-                      {radius >= 1000 ? `${radius / 1000}km` : `${radius}m`}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={[styles.divider, {backgroundColor: colors.border}]} />
-              <View style={styles.settingRow}>
-                <Text style={[styles.settingLabel, {color: colors.text}]}>
                   When near a shop
                 </Text>
               </View>
@@ -473,42 +437,6 @@ const SettingsScreen: React.FC = () => {
           </Text>
         </View>
       </View>
-
-      <Modal
-        visible={showCustomCurrencyModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowCustomCurrencyModal(false)}>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
-            <Text style={[styles.modalTitle, {color: colors.text}]}>Custom Currency</Text>
-            <Text style={[styles.modalDescription, {color: colors.textSecondary}]}>
-              Enter a currency symbol (e.g., ₿, MAD, BTC)
-            </Text>
-            <TextInput
-              style={[styles.modalInput, {color: colors.text, borderColor: colors.border, backgroundColor: colors.background}]}
-              value={customCurrencyInput}
-              onChangeText={setCustomCurrencyInput}
-              placeholder="Symbol"
-              placeholderTextColor={colors.textSecondary}
-              autoFocus
-              maxLength={5}
-            />
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, {backgroundColor: colors.background}]}
-                onPress={() => setShowCustomCurrencyModal(false)}>
-                <Text style={[styles.modalButtonText, {color: colors.text}]}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.modalButton, {backgroundColor: colors.primary}]}
-                onPress={handleConfirmCustomCurrency}>
-                <Text style={[styles.modalButtonText, {color: colors.textInverse}]}>Add</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
     </ScrollView>
   );
 };
@@ -641,50 +569,6 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: FontSize.sm,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: Spacing.xl,
-  },
-  modalContent: {
-    width: '100%',
-    borderRadius: 12,
-    padding: Spacing.lg,
-  },
-  modalTitle: {
-    fontSize: FontSize.lg,
-    fontWeight: '600',
-    marginBottom: Spacing.xs,
-  },
-  modalDescription: {
-    fontSize: FontSize.sm,
-    marginBottom: Spacing.md,
-  },
-  modalInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    fontSize: FontSize.lg,
-    textAlign: 'center',
-    marginBottom: Spacing.md,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  modalButton: {
-    flex: 1,
-    paddingVertical: Spacing.sm,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    fontSize: FontSize.base,
-    fontWeight: '500',
   },
 });
 

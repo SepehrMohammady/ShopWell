@@ -37,7 +37,6 @@ const readStateFromStorage = async (): Promise<{
       schedules: parsed.schedules || [],
       settings: parsed.settings || {
         locationNotificationsEnabled: false,
-        defaultGeofenceRadius: 200,
         nearbyShopAction: 'suggest',
         currency: '€',
       },

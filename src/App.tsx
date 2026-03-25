@@ -9,6 +9,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {NavigationContainer, DefaultTheme, DarkTheme} from '@react-navigation/native';
 import {AppProvider} from './context/AppContext';
 import {ThemeProvider, useTheme} from './context/ThemeContext';
+import {AlertProvider} from './components/common';
 import RootNavigator from './navigation/RootNavigator';
 import {initBackgroundWorker} from './services/BackgroundWorkerService';
 import {initializeNotificationService} from './services/NotificationService';
@@ -60,9 +61,11 @@ const App: React.FC = () => {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AppProvider>
-          <AppContent />
-        </AppProvider>
+        <AlertProvider>
+          <AppProvider>
+            <AppContent />
+          </AppProvider>
+        </AlertProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

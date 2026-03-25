@@ -16,7 +16,7 @@ const PRODUCT_COLUMNS = ['id', 'name', 'category', 'isAvailable', 'notes', 'imag
 const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'createdAt', 'updatedAt'];
 const SCHEDULE_COLUMNS = ['id', 'title', 'shopId', 'productIds', 'date', 'time', 'isRecurring', 'recurringPattern', 'reminder', 'reminderMinutes', 'notes', 'isCompleted', 'createdAt', 'updatedAt'];
 const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'quantity', 'unit', 'lastUpdated'];
-const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'defaultGeofenceRadius', 'nearbyShopAction', 'currency', 'currencies'];
+const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'nearbyShopAction', 'currency', 'currencies'];
 
 /**
  * Escape a value for CSV (handle commas, quotes, newlines)
@@ -213,7 +213,6 @@ const toSPB = (row: any): ShopProductBrand => ({
  */
 const toSettings = (row: any): AppSettings => ({
   locationNotificationsEnabled: row.locationNotificationsEnabled === 'true',
-  defaultGeofenceRadius: parseInt(row.defaultGeofenceRadius, 10) || 200,
   nearbyShopAction: row.nearbyShopAction === 'auto-open' ? 'auto-open' : 'suggest',
   currency: row.currency || '€',
   currencies: row.currencies ? row.currencies.split('|').filter((s: string) => s) : ['€', '$', '£', '¥', '₹'],
@@ -230,7 +229,7 @@ export const importFromCSV = (csv: string): AppState => {
     schedules: [],
     products: [],
     shopProductBrands: [],
-    settings: {locationNotificationsEnabled: false, defaultGeofenceRadius: 200, nearbyShopAction: 'suggest' as const, currency: '€', currencies: ['€', '$', '£', '¥', '₹']},
+    settings: {locationNotificationsEnabled: false, nearbyShopAction: 'suggest' as const, currency: '€', currencies: ['€', '$', '£', '¥', '₹']},
   };
 
   let currentSection = '';

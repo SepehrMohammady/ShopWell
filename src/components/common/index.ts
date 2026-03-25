@@ -4,3 +4,5 @@ export {default as Input} from './Input';
 export {default as Checkbox} from './Checkbox';
 export {default as EmptyState} from './EmptyState';
 export {default as FAB} from './FAB';
+export {AlertProvider, useAlert} from './AppAlert';
+export type {AlertButton, AlertConfig} from './AppAlert';
