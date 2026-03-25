@@ -12,12 +12,9 @@ import {useApp} from '../context/AppContext';
 import {useTheme, ThemeMode} from '../context/ThemeContext';
 import {
   requestLocationPermission,
-  requestBackgroundLocationPermission,
   checkLocationPermission,
   openLocationSettings,
-  GeofenceManager,
 } from '../services/LocationService';
-import {initializeNotificationService} from '../services/NotificationService';
 import {defaultSettings} from '../types';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
@@ -78,45 +75,25 @@ const SettingsScreen: React.FC = () => {
       const locationStatus = await requestLocationPermission();
       
       if (locationStatus === 'granted') {
-        // Request background location permission
-        const bgStatus = await requestBackgroundLocationPermission();
-        
-        if (bgStatus === 'granted') {
-          // Initialize notification service
-          await initializeNotificationService();
-          
-          // Start geofence monitoring
-          const shopsWithLocation = state.shops.filter(
-            s => s.latitude && s.longitude && s.notifyOnNearby,
-          );
-          await GeofenceManager.getInstance().startMonitoring(shopsWithLocation);
-          
-          updateSettings({locationNotificationsEnabled: true});
-          Alert.alert(
-            'Location Notifications Enabled',
-            `Monitoring ${shopsWithLocation.length} shops with location data.`,
-          );
-        } else if (bgStatus === 'never_ask_again') {
-          openLocationSettings();
-        } else {
-          Alert.alert(
-            'Background Location Required',
-            'Background location access is needed to notify you when near shops.',
-          );
-        }
+        updateSettings({locationNotificationsEnabled: true});
+        const shopsWithLocation = state.shops.filter(
+          s => s.latitude && s.longitude && s.notifyOnNearby,
+        );
+        Alert.alert(
+          'Nearby Shop Detection Enabled',
+          `Will check proximity to ${shopsWithLocation.length} shop${shopsWithLocation.length !== 1 ? 's' : ''} while the app is open.`,
+        );
       } else if (locationStatus === 'never_ask_again') {
         openLocationSettings();
       } else {
         Alert.alert(
           'Permission Denied',
-          'Location permission is required to notify you when near shops.',
+          'Location permission is required to detect nearby shops.',
         );
       }
       
       setIsCheckingPermission(false);
     } else {
-      // Disable location notifications
-      GeofenceManager.getInstance().stopMonitoring();
       updateSettings({locationNotificationsEnabled: false});
     }
   };
@@ -207,15 +184,15 @@ const SettingsScreen: React.FC = () => {
           </View>
         </Card>
 
-        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Location Notifications</Text>
+        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Nearby Shop Detection</Text>
         <Card>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
               <Text style={[styles.settingLabel, {color: colors.text}]}>
-                Notify when near shops
+                Detect nearby shops
               </Text>
               <Text style={[styles.settingDescription, {color: colors.textSecondary}]}>
-                Get alerts when you're close to saved shops
+                Show a banner when you're near a saved shop while the app is open
               </Text>
             </View>
             <Switch
@@ -232,7 +209,7 @@ const SettingsScreen: React.FC = () => {
               <View style={[styles.divider, {backgroundColor: colors.border}]} />
               <View style={styles.settingRow}>
                 <Text style={[styles.settingLabel, {color: colors.text}]}>
-                  Default notification radius
+                  Default detection radius
                 </Text>
               </View>
               <View style={styles.radiusSelector}>
@@ -265,8 +242,50 @@ const SettingsScreen: React.FC = () => {
                   </TouchableOpacity>
                 ))}
               </View>
+
+              <View style={[styles.divider, {backgroundColor: colors.border}]} />
+              <View style={styles.settingRow}>
+                <Text style={[styles.settingLabel, {color: colors.text}]}>
+                  When near a shop
+                </Text>
+              </View>
+              <View style={styles.radiusSelector}>
+                {([{label: 'Suggest', value: 'suggest'}, {label: 'Auto-open', value: 'auto-open'}] as const).map(option => (
+                  <TouchableOpacity
+                    key={option.value}
+                    style={[
+                      styles.radiusOption,
+                      {
+                        backgroundColor: state.settings.nearbyShopAction === option.value
+                          ? colors.primary
+                          : colors.surface,
+                        borderColor: state.settings.nearbyShopAction === option.value
+                          ? colors.primary
+                          : colors.border,
+                      },
+                    ]}
+                    onPress={() => updateSettings({nearbyShopAction: option.value})}
+                  >
+                    <Text
+                      style={[
+                        styles.radiusOptionText,
+                        {color: state.settings.nearbyShopAction === option.value
+                          ? colors.white
+                          : colors.text},
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
               <Text style={[styles.settingHint, {color: colors.textLight}]}>
-                {state.shops.filter(s => s.notifyOnNearby).length} shops configured for notifications
+                {state.settings.nearbyShopAction === 'suggest'
+                  ? 'Show a banner to open shop mode'
+                  : 'Automatically open shop mode when nearby'}
+              </Text>
+              <Text style={[styles.settingHint, {color: colors.textLight}]}>
+                {state.shops.filter(s => s.notifyOnNearby).length} shops configured for detection
               </Text>
             </>
           )}

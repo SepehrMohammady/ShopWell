@@ -13,10 +13,12 @@ import {
   Alert,
   Modal,
   FlatList,
+  Image,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import Input from '../components/common/Input';
@@ -76,6 +78,7 @@ export const AddEditProductScreen: React.FC = () => {
   );
   const [isAvailable, setIsAvailable] = useState(existingProduct?.isAvailable ?? false);
   const [notes, setNotes] = useState(existingProduct?.notes || '');
+  const [imageUri, setImageUri] = useState(existingProduct?.imageUri || '');
 
   // Brand prices - each entry is a shop+brand+price combination
   const [brandPrices, setBrandPrices] = useState<BrandPriceEntry[]>([]);
@@ -163,6 +166,7 @@ export const AddEditProductScreen: React.FC = () => {
       category,
       isAvailable,
       notes: notes.trim() || undefined,
+      imageUri: imageUri || undefined,
       createdAt: existingProduct?.createdAt || now,
       updatedAt: now,
     };
@@ -393,6 +397,54 @@ export const AddEditProductScreen: React.FC = () => {
         placeholder="e.g., Milk, Shampoo, Bread..."
       />
 
+      {/* Product Image */}
+      <Text style={[styles.sectionTitle, {color: colors.text}]}>Image (optional)</Text>
+      <TouchableOpacity
+        style={[styles.imagePicker, {backgroundColor: colors.surface, borderColor: colors.border}]}
+        onPress={() => {
+          Alert.alert('Add Photo', 'Choose an option', [
+            {
+              text: 'Camera',
+              onPress: () => {
+                launchCamera({mediaType: 'photo', quality: 0.7, maxWidth: 800, maxHeight: 800}, (response) => {
+                  if (!response.didCancel && !response.errorCode && response.assets?.[0]?.uri) {
+                    setImageUri(response.assets[0].uri);
+                  }
+                });
+              },
+            },
+            {
+              text: 'Gallery',
+              onPress: () => {
+                launchImageLibrary({mediaType: 'photo', quality: 0.7, maxWidth: 800, maxHeight: 800}, (response) => {
+                  if (!response.didCancel && !response.errorCode && response.assets?.[ 0]?.uri) {
+                    setImageUri(response.assets[0].uri);
+                  }
+                });
+              },
+            },
+            {text: 'Cancel', style: 'cancel'},
+          ]);
+        }}>
+        {imageUri ? (
+          <View style={styles.imagePreviewContainer}>
+            <Image source={{uri: imageUri}} style={styles.imagePreview} />
+            <TouchableOpacity
+              style={[styles.imageRemoveButton, {backgroundColor: colors.error}]}
+              onPress={() => setImageUri('')}>
+              <MaterialCommunityIcons name="close" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.imagePlaceholder}>
+            <MaterialCommunityIcons name="camera-plus" size={32} color={colors.textSecondary} />
+            <Text style={[styles.imagePlaceholderText, {color: colors.textSecondary}]}>
+              Add a photo to help identify this product
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
       {/* Category */}
       <Text style={[styles.sectionTitle, {color: colors.text}]}>Category</Text>
       {renderCategorySelector()}
@@ -596,6 +648,39 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.base,
     paddingBottom: Spacing.xxl,
+  },
+  imagePicker: {
+    borderWidth: 1,
+    borderRadius: 12,
+    marginBottom: Spacing.base,
+    overflow: 'hidden',
+  },
+  imagePreviewContainer: {
+    position: 'relative',
+  },
+  imagePreview: {
+    width: '100%',
+    height: 180,
+    borderRadius: 12,
+  },
+  imageRemoveButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl,
+  },
+  imagePlaceholderText: {
+    fontSize: 13,
+    marginTop: Spacing.sm,
   },
   sectionTitle: {
     fontSize: 16,

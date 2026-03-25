@@ -18,6 +18,7 @@ export interface Product {
   category: ProductCategory;
   isAvailable: boolean; // true = we have it, false = on shopping list
   notes?: string;
+  imageUri?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -107,6 +108,7 @@ export interface Schedule {
 export interface AppSettings {
   locationNotificationsEnabled: boolean;
   defaultGeofenceRadius: number; // meters
+  nearbyShopAction: 'suggest' | 'auto-open'; // What to do when near a shop
   currency: string;
 }
 
@@ -162,5 +164,6 @@ export const ProductCategoryInfo: Record<ProductCategory, {label: string; icon: 
 export const defaultSettings: AppSettings = {
   locationNotificationsEnabled: false,
   defaultGeofenceRadius: 200,
+  nearbyShopAction: 'suggest',
   currency: '€',
 };

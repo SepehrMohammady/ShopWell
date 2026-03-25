@@ -3,6 +3,7 @@
  */
 
 import React from 'react';
+import {View, StyleSheet} from 'react-native';
 import {createStackNavigator} from '@react-navigation/stack';
 import {RootStackParamList} from '../types';
 import MainTabNavigator from './MainTabNavigator';
@@ -12,6 +13,7 @@ import {AddEditProductScreen} from '../screens/AddEditProductScreen';
 import ShopDetailScreen from '../screens/ShopDetailScreen';
 import {ProductDetailScreen} from '../screens/ProductDetailScreen';
 import {ShopModeScreen} from '../screens/ShopModeScreen';
+import NearbyShopBanner from '../components/NearbyShopBanner';
 import {useTheme} from '../context/ThemeContext';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -20,7 +22,9 @@ const RootNavigator: React.FC = () => {
   const {colors} = useTheme();
 
   return (
-    <Stack.Navigator
+    <View style={styles.root}>
+      <NearbyShopBanner />
+      <Stack.Navigator
       screenOptions={{
         headerStyle: {
           backgroundColor: colors.surface,
@@ -82,7 +86,14 @@ const RootNavigator: React.FC = () => {
         options={{title: 'Shop Mode', headerShown: false}}
       />
     </Stack.Navigator>
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
+});
 
 export default RootNavigator;

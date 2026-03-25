@@ -12,6 +12,7 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
+  Image,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -240,9 +241,14 @@ export const ProductsScreen: React.FC = () => {
           </TouchableOpacity>
 
           <View style={styles.productInfo}>
-            <Text style={[styles.productName, {color: colors.text}]}>
-              {item.name}
-            </Text>
+            <View style={styles.productNameRow}>
+              {item.imageUri && (
+                <Image source={{uri: item.imageUri}} style={styles.productThumbnail} />
+              )}
+              <Text style={[styles.productName, {color: colors.text}, item.imageUri && {flex: 1}]}>
+                {item.name}
+              </Text>
+            </View>
             <View style={styles.productMeta}>
               <View
                 style={[
@@ -474,6 +480,16 @@ const styles = StyleSheet.create({
   },
   productInfo: {
     flex: 1,
+  },
+  productNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  productThumbnail: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    marginRight: Spacing.sm,
   },
   productName: {
     fontSize: 16,

@@ -9,11 +9,11 @@ import {pick, types} from 'react-native-document-picker';
 import {AppState, Product, Shop, Schedule, ShopProductBrand, AppSettings} from '../types';
 
 // CSV column definitions for each data type
-const PRODUCT_COLUMNS = ['id', 'name', 'category', 'isAvailable', 'notes', 'createdAt', 'updatedAt'];
+const PRODUCT_COLUMNS = ['id', 'name', 'category', 'isAvailable', 'notes', 'imageUri', 'createdAt', 'updatedAt'];
 const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'createdAt', 'updatedAt'];
 const SCHEDULE_COLUMNS = ['id', 'title', 'shopId', 'date', 'time', 'isRecurring', 'recurringPattern', 'reminder', 'reminderMinutes', 'notes', 'isCompleted', 'createdAt', 'updatedAt'];
 const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'quantity', 'unit', 'lastUpdated'];
-const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'defaultGeofenceRadius', 'currency'];
+const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'defaultGeofenceRadius', 'nearbyShopAction', 'currency'];
 
 /**
  * Escape a value for CSV (handle commas, quotes, newlines)
@@ -127,6 +127,7 @@ const toProduct = (row: any): Product => ({
   category: row.category || 'other',
   isAvailable: row.isAvailable === 'true',
   notes: row.notes || undefined,
+  imageUri: row.imageUri || undefined,
   createdAt: row.createdAt,
   updatedAt: row.updatedAt,
 });
@@ -191,6 +192,7 @@ const toSPB = (row: any): ShopProductBrand => ({
 const toSettings = (row: any): AppSettings => ({
   locationNotificationsEnabled: row.locationNotificationsEnabled === 'true',
   defaultGeofenceRadius: parseInt(row.defaultGeofenceRadius, 10) || 200,
+  nearbyShopAction: row.nearbyShopAction === 'auto-open' ? 'auto-open' : 'suggest',
   currency: row.currency || '€',
 });
 
@@ -205,7 +207,7 @@ export const importFromCSV = (csv: string): AppState => {
     schedules: [],
     products: [],
     shopProductBrands: [],
-    settings: {locationNotificationsEnabled: false, defaultGeofenceRadius: 200, currency: '€'},
+    settings: {locationNotificationsEnabled: false, defaultGeofenceRadius: 200, nearbyShopAction: 'suggest' as const, currency: '€'},
   };
 
   let currentSection = '';

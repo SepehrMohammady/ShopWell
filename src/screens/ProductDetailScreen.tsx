@@ -11,6 +11,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
+  Image,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -47,6 +48,7 @@ export const ProductDetailScreen: React.FC = () => {
   const allPrices = getAllPricesForProduct(productId, state.shopProductBrands, state.shops);
   const priceRange = getPriceRange(productId, state.shopProductBrands);
   const totalBrands = state.shopProductBrands.filter(spb => spb.productId === productId).length;
+  const globalBestPrice = allPrices.length > 0 ? allPrices[0].cheapestPrice : Infinity;
 
   const handleEdit = () => {
     navigation.navigate('AddEditProduct', {productId});
@@ -80,6 +82,9 @@ export const ProductDetailScreen: React.FC = () => {
       contentContainerStyle={styles.content}>
       {/* Header Card */}
       <Card>
+        {product.imageUri && (
+          <Image source={{uri: product.imageUri}} style={styles.productImage} />
+        )}
         <View style={styles.header}>
           <View
             style={[
@@ -194,7 +199,8 @@ export const ProductDetailScreen: React.FC = () => {
         </Card>
       ) : (
         allPrices.map((shopData, shopIndex) => {
-          const isCheapestShop = shopIndex === 0;
+          const bestPrice = allPrices[0].cheapestPrice;
+          const isCheapestShop = shopData.cheapestPrice === bestPrice;
           
           return (
             <Card 
@@ -239,7 +245,7 @@ export const ProductDetailScreen: React.FC = () => {
                           <Text style={[styles.brandName, {color: colors.text}]}>
                             {brand.brand}
                           </Text>
-                          {brand.price === shopData.cheapestPrice && shopData.brands.length > 1 && (
+                          {brand.price === globalBestPrice && totalBrands > 1 && (
                             <Text style={[styles.cheapestAtShop, {color: colors.success}]}>
                               cheapest here
                             </Text>
@@ -306,6 +312,12 @@ const styles = StyleSheet.create({
   content: {
     padding: Spacing.base,
     paddingBottom: Spacing.xxl,
+  },
+  productImage: {
+    width: '100%',
+    height: 180,
+    borderRadius: 8,
+    marginBottom: Spacing.base,
   },
   header: {
     flexDirection: 'row',
