@@ -1,12 +1,13 @@
 /**
  * Schedule Screen
+ * Redesigned: product-focused shopping schedule cards
  */
 
 import React from 'react';
-import {View, FlatList, StyleSheet, Text} from 'react-native';
+import {View, FlatList, StyleSheet, Text, Image} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList, Schedule} from '../types';
+import {RootStackParamList, Schedule, Product} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, FAB} from '../components/common';
@@ -35,87 +36,116 @@ const ScheduleScreen: React.FC = () => {
     return shop?.name;
   };
 
-  const getProductNames = (productIds?: string[]): string | undefined => {
-    if (!productIds || productIds.length === 0) return undefined;
-    const names = productIds
-      .map(id => state.products.find(p => p.id === id)?.name)
-      .filter(Boolean);
-    if (names.length === 0) return undefined;
-    if (names.length <= 2) return names.join(', ');
-    return `${names[0]}, ${names[1]} +${names.length - 2} more`;
+  const getProducts = (productIds?: string[]): Product[] => {
+    if (!productIds || productIds.length === 0) return [];
+    return productIds
+      .map(id => state.products.find(p => p.id === id))
+      .filter((p): p is Product => !!p);
   };
 
-  // Sort schedules by date
-  const sortedSchedules = [...state.schedules].sort(
-    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-  );
+  // Sort: incomplete first (by date asc), then completed (by date desc)
+  const sortedSchedules = [...state.schedules].sort((a, b) => {
+    if (a.isCompleted !== b.isCompleted) return a.isCompleted ? 1 : -1;
+    return new Date(a.date).getTime() - new Date(b.date).getTime();
+  });
 
   const renderScheduleItem = ({item}: {item: Schedule}) => {
     const shopName = getShopName(item.shopId);
-    const productNames = getProductNames(item.productIds);
+    const products = getProducts(item.productIds);
+    const isPast = new Date(item.date).getTime() < Date.now() && !item.isRecurring;
 
     return (
       <Card onPress={() => handleSchedulePress(item.id)} elevated>
-        <View style={styles.scheduleHeader}>
-          <View style={[styles.dateContainer, {backgroundColor: colors.primary}]}>
-            <Text style={[styles.dateDay, {color: colors.textInverse}]}>
-              {new Date(item.date).getDate()}
-            </Text>
-            <Text style={[styles.dateMonth, {color: colors.textInverse}]}>
-              {new Date(item.date).toLocaleDateString('en-US', {month: 'short'})}
-            </Text>
-          </View>
-          <View style={styles.scheduleDetails}>
-            <View style={styles.titleRow}>
-              <Text style={[styles.scheduleTitle, {color: colors.text}]}>{item.title}</Text>
-              {item.isCompleted && (
-                <MaterialCommunityIcons name="check-circle" size={18} color={colors.success} />
-              )}
-            </View>
-            <View style={styles.metaRow}>
-              <MaterialCommunityIcons name="calendar" size={14} color={colors.textSecondary} />
-              <Text style={[styles.scheduleTime, {color: colors.textSecondary}]}>
-                {getRelativeDate(item.date)}
-                {item.time && ` • `}
+        <View style={[styles.scheduleCard, item.isCompleted && styles.completedCard]}>
+          {/* Top row: date badge + title + status */}
+          <View style={styles.headerRow}>
+            <View style={[styles.dateBadge, {backgroundColor: item.isCompleted ? colors.success : isPast ? colors.error : colors.primary}]}>
+              <Text style={[styles.dateDay, {color: colors.textInverse}]}>
+                {new Date(item.date).getDate()}
               </Text>
-              {item.time && (
-                <>
-                  <MaterialCommunityIcons name="clock-outline" size={14} color={colors.textSecondary} />
-                  <Text style={[styles.scheduleTime, {color: colors.textSecondary}]}>
-                    {item.time}
-                  </Text>
-                </>
+              <Text style={[styles.dateMonth, {color: colors.textInverse}]}>
+                {new Date(item.date).toLocaleDateString('en-US', {month: 'short'})}
+              </Text>
+            </View>
+            <View style={styles.headerInfo}>
+              <View style={styles.titleRow}>
+                <Text style={[styles.title, {color: colors.text}, item.isCompleted && styles.completedText]} numberOfLines={1}>
+                  {item.title}
+                </Text>
+                {item.isCompleted && (
+                  <MaterialCommunityIcons name="check-circle" size={18} color={colors.success} />
+                )}
+              </View>
+              <View style={styles.metaRow}>
+                <MaterialCommunityIcons name="calendar-clock" size={14} color={colors.textSecondary} />
+                <Text style={[styles.metaText, {color: colors.textSecondary}]}>
+                  {getRelativeDate(item.date)}
+                  {item.time ? ` • ${item.time}` : ''}
+                </Text>
+              </View>
+              {shopName && (
+                <View style={styles.metaRow}>
+                  <MaterialCommunityIcons name="store" size={14} color={colors.textSecondary} />
+                  <Text style={[styles.metaText, {color: colors.textSecondary}]}>{shopName}</Text>
+                </View>
               )}
             </View>
-            {shopName && (
-              <View style={styles.metaRow}>
-                <MaterialCommunityIcons name="store" size={14} color={colors.textSecondary} />
-                <Text style={[styles.scheduleMeta, {color: colors.textSecondary}]}>{shopName}</Text>
-              </View>
-            )}
-            {productNames && (
-              <View style={styles.metaRow}>
-                <MaterialCommunityIcons name="shopping" size={14} color={colors.textSecondary} />
-                <Text style={[styles.scheduleMeta, {color: colors.textSecondary}]} numberOfLines={1}>{productNames}</Text>
-              </View>
-            )}
-            {item.isRecurring && (
-              <View style={styles.metaRow}>
-                <MaterialCommunityIcons name="repeat" size={14} color={colors.primary} />
-                <Text style={[styles.recurringBadge, {color: colors.primary}]}>
-                  {item.recurringPattern}
-                </Text>
-              </View>
-            )}
-            {item.reminder && (
-              <View style={styles.metaRow}>
-                <MaterialCommunityIcons name="bell" size={14} color={colors.warning} />
-                <Text style={[styles.reminderBadge, {color: colors.warning}]}>
-                  Reminder {item.reminderMinutes} min before
-                </Text>
-              </View>
-            )}
           </View>
+
+          {/* Products list - the main content */}
+          {products.length > 0 && (
+            <View style={[styles.productsSection, {borderTopColor: colors.border}]}>
+              <View style={styles.productsSectionHeader}>
+                <MaterialCommunityIcons name="cart-outline" size={16} color={colors.primary} />
+                <Text style={[styles.productsSectionTitle, {color: colors.primary}]}>
+                  {products.length} item{products.length !== 1 ? 's' : ''} to buy
+                </Text>
+              </View>
+              {products.map((product, index) => (
+                <View key={product.id} style={styles.productRow}>
+                  {product.imageUri ? (
+                    <Image source={{uri: product.imageUri}} style={styles.productImage} />
+                  ) : (
+                    <View style={[styles.productBullet, {backgroundColor: colors.primary + '30'}]}>
+                      <MaterialCommunityIcons name="circle-medium" size={14} color={colors.primary} />
+                    </View>
+                  )}
+                  <Text
+                    style={[styles.productName, {color: colors.text}]}
+                    numberOfLines={1}>
+                    {product.name}
+                  </Text>
+                  {!product.isAvailable && (
+                    <View style={[styles.needBadge, {backgroundColor: colors.warning + '20'}]}>
+                      <Text style={[styles.needBadgeText, {color: colors.warning}]}>Need</Text>
+                    </View>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Badges row */}
+          {(item.isRecurring || item.reminder) && (
+            <View style={[styles.badgesRow, {borderTopColor: colors.border}]}>
+              {item.isRecurring && (
+                <View style={[styles.badge, {backgroundColor: colors.primary + '15'}]}>
+                  <MaterialCommunityIcons name="repeat" size={13} color={colors.primary} />
+                  <Text style={[styles.badgeText, {color: colors.primary}]}>{item.recurringPattern}</Text>
+                </View>
+              )}
+              {item.reminder && (
+                <View style={[styles.badge, {backgroundColor: colors.warning + '15'}]}>
+                  <MaterialCommunityIcons name="bell" size={13} color={colors.warning} />
+                  <Text style={[styles.badgeText, {color: colors.warning}]}>
+                    {item.reminderMinutes! >= 60
+                      ? `${item.reminderMinutes! / 60}h before`
+                      : `${item.reminderMinutes}m before`}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </Card>
     );
@@ -157,37 +187,49 @@ const styles = StyleSheet.create({
     padding: Spacing.base,
     paddingBottom: 100,
   },
-  scheduleHeader: {
+  scheduleCard: {
+    // wrapper for opacity on completed
+  },
+  completedCard: {
+    opacity: 0.6,
+  },
+  headerRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  dateContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
+  dateBadge: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
   },
   dateDay: {
     fontSize: FontSize.lg,
     fontWeight: 'bold',
+    lineHeight: 22,
   },
   dateMonth: {
-    fontSize: FontSize.xs,
+    fontSize: 10,
     textTransform: 'uppercase',
+    fontWeight: '600',
   },
-  scheduleDetails: {
+  headerInfo: {
     marginLeft: Spacing.md,
     flex: 1,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.xs,
   },
-  scheduleTitle: {
+  title: {
     fontSize: FontSize.lg,
     fontWeight: '600',
     flex: 1,
+  },
+  completedText: {
+    textDecorationLine: 'line-through',
   },
   metaRow: {
     flexDirection: 'row',
@@ -195,17 +237,73 @@ const styles = StyleSheet.create({
     gap: 4,
     marginTop: 2,
   },
-  scheduleTime: {
+  metaText: {
     fontSize: FontSize.sm,
   },
-  scheduleMeta: {
+  productsSection: {
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+  },
+  productsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  productsSectionTitle: {
     fontSize: FontSize.sm,
+    fontWeight: '600',
   },
-  recurringBadge: {
-    fontSize: FontSize.xs,
+  productRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 3,
+    gap: Spacing.sm,
   },
-  reminderBadge: {
+  productImage: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+  },
+  productBullet: {
+    width: 24,
+    height: 24,
+    borderRadius: 4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  productName: {
+    fontSize: FontSize.sm,
+    flex: 1,
+  },
+  needBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  needBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+  },
+  badgeText: {
     fontSize: FontSize.xs,
+    fontWeight: '500',
   },
 });
 

@@ -7,6 +7,7 @@ import notifee, {
   TriggerType,
   TimestampTrigger,
   AuthorizationStatus,
+  AlarmType,
 } from '@notifee/react-native';
 import {Platform} from 'react-native';
 import {Shop, Schedule} from '../types';
@@ -147,6 +148,9 @@ export const scheduleReminderNotification = async (
     const trigger: TimestampTrigger = {
       type: TriggerType.TIMESTAMP,
       timestamp: triggerTime,
+      alarmManager: {
+        type: AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE,
+      },
     };
 
     let body = `Shopping trip: ${schedule.title}`;

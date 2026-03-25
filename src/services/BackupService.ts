@@ -16,7 +16,7 @@ const PRODUCT_COLUMNS = ['id', 'name', 'category', 'isAvailable', 'notes', 'imag
 const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'createdAt', 'updatedAt'];
 const SCHEDULE_COLUMNS = ['id', 'title', 'shopId', 'productIds', 'date', 'time', 'isRecurring', 'recurringPattern', 'reminder', 'reminderMinutes', 'notes', 'isCompleted', 'createdAt', 'updatedAt'];
 const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'quantity', 'unit', 'lastUpdated'];
-const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'defaultGeofenceRadius', 'nearbyShopAction', 'currency'];
+const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'defaultGeofenceRadius', 'nearbyShopAction', 'currency', 'currencies'];
 
 /**
  * Escape a value for CSV (handle commas, quotes, newlines)
@@ -114,7 +114,12 @@ export const exportToCSV = (state: AppState): string => {
   }));
   sections.push(buildSection('Schedules', SCHEDULE_COLUMNS, schedulesForExport));
   sections.push(buildSection('ShopProductBrands', SPB_COLUMNS, state.shopProductBrands));
-  sections.push(buildSection('Settings', SETTINGS_COLUMNS, [state.settings]));
+  // Flatten currencies array to pipe-separated string for CSV
+  const settingsForExport = {
+    ...state.settings,
+    currencies: state.settings.currencies?.join('|') || '',
+  };
+  sections.push(buildSection('Settings', SETTINGS_COLUMNS, [settingsForExport]));
 
   return sections.join('\n');
 };
@@ -211,6 +216,7 @@ const toSettings = (row: any): AppSettings => ({
   defaultGeofenceRadius: parseInt(row.defaultGeofenceRadius, 10) || 200,
   nearbyShopAction: row.nearbyShopAction === 'auto-open' ? 'auto-open' : 'suggest',
   currency: row.currency || '€',
+  currencies: row.currencies ? row.currencies.split('|').filter((s: string) => s) : ['€', '$', '£', '¥', '₹'],
 });
 
 /**
@@ -224,7 +230,7 @@ export const importFromCSV = (csv: string): AppState => {
     schedules: [],
     products: [],
     shopProductBrands: [],
-    settings: {locationNotificationsEnabled: false, defaultGeofenceRadius: 200, nearbyShopAction: 'suggest' as const, currency: '€'},
+    settings: {locationNotificationsEnabled: false, defaultGeofenceRadius: 200, nearbyShopAction: 'suggest' as const, currency: '€', currencies: ['€', '$', '£', '¥', '₹']},
   };
 
   let currentSection = '';

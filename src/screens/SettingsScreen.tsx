@@ -3,7 +3,7 @@
  */
 
 import React, {useState} from 'react';
-import {View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity, Switch, Image} from 'react-native';
+import {View, Text, StyleSheet, ScrollView, Alert, Linking, TouchableOpacity, Switch, Image, Modal, TextInput} from 'react-native';
 import {Card} from '../components/common';
 import {Spacing, FontSize, APP_VERSION} from '../constants';
 import {StorageService} from '../services/StorageService';
@@ -15,7 +15,7 @@ import {
   checkLocationPermission,
   openLocationSettings,
 } from '../services/LocationService';
-import {defaultSettings} from '../types';
+import {defaultSettings, PREDEFINED_CURRENCIES} from '../types';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const SettingsScreen: React.FC = () => {
@@ -24,6 +24,8 @@ const SettingsScreen: React.FC = () => {
   const [isCheckingPermission, setIsCheckingPermission] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [showCustomCurrencyModal, setShowCustomCurrencyModal] = useState(false);
+  const [customCurrencyInput, setCustomCurrencyInput] = useState('');
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -137,6 +139,74 @@ const SettingsScreen: React.FC = () => {
     {label: 'System', value: 'system'},
   ];
 
+  const userCurrencies = state.settings.currencies || defaultSettings.currencies;
+  const activeCurrency = state.settings.currency || '€';
+
+  const handleSelectCurrency = (c: string) => {
+    updateSettings({currency: c});
+  };
+
+  const handleAddCurrency = () => {
+    // Show currencies not already added
+    const available = PREDEFINED_CURRENCIES.filter(c => !userCurrencies.includes(c));
+    if (available.length === 0) {
+      // All predefined added, offer custom
+      handleCreateCustomCurrency();
+      return;
+    }
+    const buttons = available.slice(0, 8).map(c => ({
+      text: c,
+      onPress: () => {
+        const updated = [...userCurrencies, c];
+        updateSettings({currencies: updated, currency: c});
+      },
+    }));
+    buttons.push({
+      text: 'Custom...',
+      onPress: () => handleCreateCustomCurrency(),
+    });
+    buttons.push({text: 'Cancel', onPress: () => {}});
+    Alert.alert('Add Currency', 'Choose a currency to add', buttons);
+  };
+
+  const handleCreateCustomCurrency = () => {
+    setCustomCurrencyInput('');
+    setShowCustomCurrencyModal(true);
+  };
+
+  const handleConfirmCustomCurrency = () => {
+    const symbol = customCurrencyInput.trim();
+    if (!symbol) {
+      setShowCustomCurrencyModal(false);
+      return;
+    }
+    if (symbol.length > 5) {
+      Alert.alert('Error', 'Currency symbol should be 5 characters or less.');
+      return;
+    }
+    if (userCurrencies.includes(symbol)) {
+      Alert.alert('Already exists', 'This currency is already in your list.');
+      setShowCustomCurrencyModal(false);
+      return;
+    }
+    const updated = [...userCurrencies, symbol];
+    updateSettings({currencies: updated, currency: symbol});
+    setShowCustomCurrencyModal(false);
+  };
+
+  const handleRemoveCurrency = (c: string) => {
+    if (userCurrencies.length <= 1) {
+      Alert.alert('Cannot Remove', 'You must have at least one currency.');
+      return;
+    }
+    const updated = userCurrencies.filter(cur => cur !== c);
+    const newSettings: Partial<typeof state.settings> = {currencies: updated};
+    if (activeCurrency === c) {
+      newSettings.currency = updated[0];
+    }
+    updateSettings(newSettings as any);
+  };
+
   return (
     <ScrollView style={[styles.container, {backgroundColor: colors.background}]}>
       <View style={styles.content}>
@@ -182,6 +252,46 @@ const SettingsScreen: React.FC = () => {
               </TouchableOpacity>
             ))}
           </View>
+        </Card>
+
+        <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Currency</Text>
+        <Card>
+          <View style={styles.settingRow}>
+            <Text style={[styles.settingLabel, {color: colors.text}]}>Active Currency</Text>
+            <Text style={[styles.settingValue, {color: colors.primary}]}>{activeCurrency}</Text>
+          </View>
+          <View style={[styles.divider, {backgroundColor: colors.border}]} />
+          <View style={styles.currencyGrid}>
+            {userCurrencies.map(c => (
+              <TouchableOpacity
+                key={c}
+                style={[
+                  styles.currencyChip,
+                  {
+                    backgroundColor: activeCurrency === c ? colors.primary : colors.surface,
+                    borderColor: activeCurrency === c ? colors.primary : colors.border,
+                  },
+                ]}
+                onPress={() => handleSelectCurrency(c)}
+                onLongPress={() => handleRemoveCurrency(c)}>
+                <Text
+                  style={[
+                    styles.currencyChipText,
+                    {color: activeCurrency === c ? colors.textInverse : colors.text},
+                  ]}>
+                  {c}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity
+              style={[styles.currencyChip, styles.currencyAddChip, {borderColor: colors.border}]}
+              onPress={handleAddCurrency}>
+              <MaterialCommunityIcons name="plus" size={18} color={colors.primary} />
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.settingHint, {color: colors.textLight}]}>
+            Tap to select • Long-press to remove
+          </Text>
         </Card>
 
         <Text style={[styles.sectionTitle, {color: colors.textSecondary}]}>Nearby Shop Detection</Text>
@@ -326,7 +436,7 @@ const SettingsScreen: React.FC = () => {
                 <Text style={[styles.settingLabel, {color: colors.text}]}>Export Backup</Text>
               </View>
               <Text style={[styles.settingDescription, {color: colors.textSecondary}]}>
-                Save all data as CSV via any app
+                Save all data as a backup archive
               </Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textLight} />
@@ -340,7 +450,7 @@ const SettingsScreen: React.FC = () => {
                 <Text style={[styles.settingLabel, {color: colors.text}]}>Restore Backup</Text>
               </View>
               <Text style={[styles.settingDescription, {color: colors.textSecondary}]}>
-                Import data from a CSV backup file
+                Import data from a backup file
               </Text>
             </View>
             <MaterialCommunityIcons name="chevron-right" size={20} color={colors.textLight} />
@@ -363,6 +473,42 @@ const SettingsScreen: React.FC = () => {
           </Text>
         </View>
       </View>
+
+      <Modal
+        visible={showCustomCurrencyModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCustomCurrencyModal(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+            <Text style={[styles.modalTitle, {color: colors.text}]}>Custom Currency</Text>
+            <Text style={[styles.modalDescription, {color: colors.textSecondary}]}>
+              Enter a currency symbol (e.g., ₿, MAD, BTC)
+            </Text>
+            <TextInput
+              style={[styles.modalInput, {color: colors.text, borderColor: colors.border, backgroundColor: colors.background}]}
+              value={customCurrencyInput}
+              onChangeText={setCustomCurrencyInput}
+              placeholder="Symbol"
+              placeholderTextColor={colors.textSecondary}
+              autoFocus
+              maxLength={5}
+            />
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, {backgroundColor: colors.background}]}
+                onPress={() => setShowCustomCurrencyModal(false)}>
+                <Text style={[styles.modalButtonText, {color: colors.text}]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, {backgroundColor: colors.primary}]}
+                onPress={handleConfirmCustomCurrency}>
+                <Text style={[styles.modalButtonText, {color: colors.textInverse}]}>Add</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 };
@@ -460,6 +606,28 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontWeight: '500',
   },
+  currencyGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  currencyChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
+    borderWidth: 1,
+    minWidth: 48,
+    alignItems: 'center',
+  },
+  currencyChipText: {
+    fontSize: FontSize.base,
+    fontWeight: '600',
+  },
+  currencyAddChip: {
+    backgroundColor: 'transparent',
+    borderStyle: 'dashed',
+  },
   arrow: {
     fontSize: FontSize.lg,
   },
@@ -473,6 +641,50 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: FontSize.sm,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.xl,
+  },
+  modalContent: {
+    width: '100%',
+    borderRadius: 12,
+    padding: Spacing.lg,
+  },
+  modalTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: '600',
+    marginBottom: Spacing.xs,
+  },
+  modalDescription: {
+    fontSize: FontSize.sm,
+    marginBottom: Spacing.md,
+  },
+  modalInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    fontSize: FontSize.lg,
+    textAlign: 'center',
+    marginBottom: Spacing.md,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: Spacing.sm,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    fontSize: FontSize.base,
+    fontWeight: '500',
   },
 });
 

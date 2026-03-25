@@ -111,6 +111,7 @@ export interface AppSettings {
   defaultGeofenceRadius: number; // meters
   nearbyShopAction: 'suggest' | 'auto-open'; // What to do when near a shop
   currency: string;
+  currencies: string[]; // User's available currencies
 }
 
 // App State
@@ -161,10 +162,16 @@ export const ProductCategoryInfo: Record<ProductCategory, {label: string; icon: 
   other: {label: 'Other', icon: 'package-variant', color: '#607D8B'},
 };
 
+// Predefined currencies
+export const PREDEFINED_CURRENCIES = [
+  '€', '$', '£', '¥', '₹', '₽', '₩', '₺', '₫', '฿', 'zł', 'kr', 'R$', 'CHF', 'A$', 'C$',
+];
+
 // Default app settings
 export const defaultSettings: AppSettings = {
   locationNotificationsEnabled: false,
   defaultGeofenceRadius: 200,
   nearbyShopAction: 'suggest',
   currency: '€',
+  currencies: ['€', '$', '£', '¥', '₹'],
 };

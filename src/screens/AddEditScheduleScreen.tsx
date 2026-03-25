@@ -3,7 +3,7 @@
  * Redesigned: native time picker, product assignment
  */
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import {
   View,
   StyleSheet,
@@ -12,11 +12,13 @@ import {
   Text,
   TouchableOpacity,
   Platform,
+  Image,
+  TextInput,
 } from 'react-native';
 import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
-import {RootStackParamList, Schedule} from '../types';
+import {RootStackParamList, Schedule, ProductCategoryInfo, ProductCategory} from '../types';
 import {useApp} from '../context/AppContext';
 import {scheduleReminderNotification, cancelScheduleNotification} from '../services/NotificationService';
 import {useTheme} from '../context/ThemeContext';
@@ -92,6 +94,7 @@ const AddEditScheduleScreen: React.FC = () => {
   const [notes, setNotes] = useState(existingSchedule?.notes || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -122,6 +125,43 @@ const AddEditScheduleScreen: React.FC = () => {
         : [...prev, productId],
     );
   };
+
+  const selectAllProducts = () => {
+    const allIds = state.products.map(p => p.id);
+    setSelectedProductIds(allIds);
+  };
+
+  const deselectAllProducts = () => {
+    setSelectedProductIds([]);
+  };
+
+  // Group & filter products
+  const groupedProducts = useMemo(() => {
+    const searchLower = productSearch.toLowerCase();
+    const filtered = state.products.filter(
+      p => !productSearch || p.name.toLowerCase().includes(searchLower),
+    );
+    // Shopping list items first, then group by category
+    const shoppingList = filtered.filter(p => !p.isAvailable);
+    const available = filtered.filter(p => p.isAvailable);
+
+    const groups: {title: string; key: string; items: typeof filtered}[] = [];
+    if (shoppingList.length > 0) {
+      groups.push({title: 'Shopping List', key: 'shopping', items: shoppingList});
+    }
+    // Group available by category
+    const byCategory = new Map<ProductCategory, typeof filtered>();
+    available.forEach(p => {
+      const list = byCategory.get(p.category) || [];
+      list.push(p);
+      byCategory.set(p.category, list);
+    });
+    byCategory.forEach((items, cat) => {
+      const info = ProductCategoryInfo[cat];
+      groups.push({title: info?.label || cat, key: cat, items});
+    });
+    return groups;
+  }, [state.products, productSearch]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -318,36 +358,89 @@ const AddEditScheduleScreen: React.FC = () => {
             <Text style={[styles.label, {color: colors.text}]}>
               Products ({selectedProductIds.length > 0 ? `${selectedProductIds.length} selected` : 'optional'})
             </Text>
-            <View style={styles.productGrid}>
-              {state.products
-                .filter(p => !p.isAvailable) // Show shopping list items first
-                .concat(state.products.filter(p => p.isAvailable))
-                .map(product => {
+            {/* Search + quick actions */}
+            <View style={styles.productActions}>
+              <View style={[styles.searchBox, {backgroundColor: colors.surface, borderColor: colors.border}]}>
+                <MaterialCommunityIcons name="magnify" size={18} color={colors.textSecondary} />
+                <TextInput
+                  style={[styles.searchInput, {color: colors.text}]}
+                  placeholder="Search products..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={productSearch}
+                  onChangeText={setProductSearch}
+                />
+                {productSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setProductSearch('')}>
+                    <MaterialCommunityIcons name="close-circle" size={16} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.quickActions}>
+                <TouchableOpacity onPress={selectAllProducts}>
+                  <Text style={[styles.quickActionText, {color: colors.primary}]}>Select All</Text>
+                </TouchableOpacity>
+                <Text style={{color: colors.textSecondary}}>•</Text>
+                <TouchableOpacity onPress={deselectAllProducts}>
+                  <Text style={[styles.quickActionText, {color: colors.textSecondary}]}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {/* Grouped product list */}
+            {groupedProducts.map(group => (
+              <View key={group.key} style={styles.productGroup}>
+                <View style={styles.groupHeader}>
+                  <Text style={[styles.groupTitle, {color: colors.textSecondary}]}>{group.title}</Text>
+                  <View style={[styles.groupLine, {backgroundColor: colors.border}]} />
+                </View>
+                {group.items.map(product => {
                   const isSelected = selectedProductIds.includes(product.id);
                   return (
                     <TouchableOpacity
                       key={product.id}
                       style={[
-                        styles.productChip,
-                        {backgroundColor: colors.surface, borderColor: colors.border},
-                        isSelected && {backgroundColor: colors.primary, borderColor: colors.primary},
+                        styles.productItem,
+                        {backgroundColor: colors.surface, borderColor: isSelected ? colors.primary : colors.border},
+                        isSelected && {backgroundColor: colors.primary + '10'},
                       ]}
-                      onPress={() => toggleProduct(product.id)}>
-                      {isSelected && (
-                        <MaterialCommunityIcons name="check" size={14} color={colors.textInverse} />
+                      onPress={() => toggleProduct(product.id)}
+                      activeOpacity={0.7}>
+                      <View style={styles.productCheckbox}>
+                        <MaterialCommunityIcons
+                          name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                          size={22}
+                          color={isSelected ? colors.primary : colors.textSecondary}
+                        />
+                      </View>
+                      {product.imageUri ? (
+                        <Image source={{uri: product.imageUri}} style={styles.productThumb} />
+                      ) : (
+                        <View style={[styles.productThumbPlaceholder, {backgroundColor: colors.border}]}>
+                          <MaterialCommunityIcons name="package-variant" size={16} color={colors.textSecondary} />
+                        </View>
                       )}
-                      <Text
-                        style={[
-                          styles.productChipText,
-                          {color: isSelected ? colors.textInverse : colors.text},
-                        ]}
-                        numberOfLines={1}>
-                        {product.name}
-                      </Text>
+                      <View style={styles.productInfo}>
+                        <Text style={[styles.productName, {color: colors.text}]} numberOfLines={1}>
+                          {product.name}
+                        </Text>
+                        <Text style={[styles.productCategory, {color: colors.textSecondary}]}>
+                          {ProductCategoryInfo[product.category]?.label || product.category}
+                        </Text>
+                      </View>
+                      {!product.isAvailable && (
+                        <View style={[styles.needTag, {backgroundColor: colors.warning + '20'}]}>
+                          <Text style={[styles.needTagText, {color: colors.warning}]}>Need</Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
                   );
                 })}
-            </View>
+              </View>
+            ))}
+            {groupedProducts.length === 0 && productSearch.length > 0 && (
+              <Text style={[styles.emptySearch, {color: colors.textSecondary}]}>
+                No products match "{productSearch}"
+              </Text>
+            )}
           </>
         )}
 
@@ -509,26 +602,101 @@ const styles = StyleSheet.create({
   completeButton: {
     marginTop: Spacing.lg,
   },
-  productGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: Spacing.md,
+  productActions: {
+    marginBottom: Spacing.sm,
   },
-  productChip: {
+  searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 20,
-    marginRight: Spacing.sm,
-    marginBottom: Spacing.sm,
     borderWidth: 1,
-    maxWidth: '48%',
+    borderRadius: 8,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: Platform.OS === 'ios' ? Spacing.sm : 0,
+    gap: Spacing.xs,
   },
-  productChipText: {
+  searchInput: {
+    flex: 1,
     fontSize: FontSize.sm,
-    flexShrink: 1,
+    paddingVertical: Spacing.xs,
+  },
+  quickActions: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    justifyContent: 'flex-end',
+    marginTop: Spacing.xs,
+  },
+  quickActionText: {
+    fontSize: FontSize.xs,
+    fontWeight: '500',
+  },
+  productGroup: {
+    marginBottom: Spacing.sm,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+    gap: Spacing.sm,
+  },
+  groupTitle: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  groupLine: {
+    flex: 1,
+    height: 1,
+  },
+  productItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.sm,
+    borderRadius: 10,
+    marginBottom: 4,
+    borderWidth: 1,
+  },
+  productCheckbox: {
+    marginRight: Spacing.xs,
+  },
+  productThumb: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    marginRight: Spacing.sm,
+  },
+  productThumbPlaceholder: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: Spacing.sm,
+  },
+  productInfo: {
+    flex: 1,
+  },
+  productName: {
+    fontSize: FontSize.sm,
+    fontWeight: '500',
+  },
+  productCategory: {
+    fontSize: FontSize.xs,
+  },
+  needTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: Spacing.xs,
+  },
+  needTagText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  emptySearch: {
+    textAlign: 'center',
+    paddingVertical: Spacing.lg,
+    fontSize: FontSize.sm,
   },
   footer: {
     position: 'absolute',
