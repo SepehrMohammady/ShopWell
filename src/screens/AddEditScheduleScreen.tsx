@@ -18,6 +18,7 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList, Schedule} from '../types';
 import {useApp} from '../context/AppContext';
+import {scheduleReminderNotification, cancelScheduleNotification} from '../services/NotificationService';
 import {useTheme} from '../context/ThemeContext';
 import {Button, Input, Card} from '../components/common';
 import {Spacing, FontSize} from '../constants';
@@ -166,6 +167,16 @@ const AddEditScheduleScreen: React.FC = () => {
       updateSchedule(schedule);
     } else {
       addSchedule(schedule);
+    }
+
+    // Register or cancel the reminder notification
+    if (schedule.reminder && schedule.reminderMinutes) {
+      const shopName = schedule.shopId
+        ? state.shops.find(s => s.id === schedule.shopId)?.name
+        : undefined;
+      scheduleReminderNotification(schedule, shopName);
+    } else {
+      cancelScheduleNotification(schedule.id);
     }
 
     navigation.goBack();

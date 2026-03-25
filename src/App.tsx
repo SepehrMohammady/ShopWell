@@ -11,6 +11,7 @@ import {AppProvider} from './context/AppContext';
 import {ThemeProvider, useTheme} from './context/ThemeContext';
 import RootNavigator from './navigation/RootNavigator';
 import {initBackgroundWorker} from './services/BackgroundWorkerService';
+import {initializeNotificationService} from './services/NotificationService';
 
 const AppContent: React.FC = () => {
   const {isDarkMode, colors} = useTheme();
@@ -52,6 +53,7 @@ const AppContent: React.FC = () => {
 
 const App: React.FC = () => {
   useEffect(() => {
+    initializeNotificationService();
     initBackgroundWorker();
   }, []);
 
