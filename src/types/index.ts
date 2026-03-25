@@ -92,6 +92,7 @@ export interface Schedule {
   id: string;
   title: string;
   shopId?: string;
+  productIds?: string[];
   date: string;
   time?: string;
   isRecurring: boolean;

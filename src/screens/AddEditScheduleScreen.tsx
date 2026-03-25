@@ -1,5 +1,6 @@
 /**
  * Add/Edit Schedule Screen
+ * Redesigned: native time picker, product assignment
  */
 
 import React, {useState, useEffect} from 'react';
@@ -56,9 +57,30 @@ const AddEditScheduleScreen: React.FC = () => {
   const [date, setDate] = useState(
     existingSchedule?.date || new Date().toISOString(),
   );
-  const [time, setTime] = useState(existingSchedule?.time || '');
+  const [timeEnabled, setTimeEnabled] = useState(!!existingSchedule?.time);
+  const [timeDate, setTimeDate] = useState<Date>(() => {
+    if (existingSchedule?.time) {
+      const match = existingSchedule.time.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+      if (match) {
+        const d = new Date();
+        let hours = parseInt(match[1], 10);
+        const minutes = parseInt(match[2], 10);
+        const period = match[3];
+        if (period?.toUpperCase() === 'PM' && hours < 12) hours += 12;
+        if (period?.toUpperCase() === 'AM' && hours === 12) hours = 0;
+        d.setHours(hours, minutes, 0, 0);
+        return d;
+      }
+    }
+    const d = new Date();
+    d.setHours(9, 0, 0, 0);
+    return d;
+  });
   const [selectedShopId, setSelectedShopId] = useState(
     existingSchedule?.shopId || '',
+  );
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>(
+    existingSchedule?.productIds || [],
   );
   const [recurring, setRecurring] = useState<string>(
     existingSchedule?.recurringPattern || 'none',
@@ -68,12 +90,36 @@ const AddEditScheduleScreen: React.FC = () => {
   );
   const [notes, setNotes] = useState(existingSchedule?.notes || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
     if (selectedDate) {
       setDate(selectedDate.toISOString());
     }
+  };
+
+  const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
+    setShowTimePicker(Platform.OS === 'ios');
+    if (selectedTime) {
+      setTimeDate(selectedTime);
+    }
+  };
+
+  const formatTime = (d: Date): string => {
+    const hours = d.getHours();
+    const minutes = d.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const h12 = hours % 12 || 12;
+    return `${h12}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+  };
+
+  const toggleProduct = (productId: string) => {
+    setSelectedProductIds(prev =>
+      prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId],
+    );
   };
 
   useEffect(() => {
@@ -100,8 +146,9 @@ const AddEditScheduleScreen: React.FC = () => {
       id: existingSchedule?.id || generateId(),
       title: title.trim(),
       date,
-      time: time || undefined,
+      time: timeEnabled ? formatTime(timeDate) : undefined,
       shopId: selectedShopId || undefined,
+      productIds: selectedProductIds.length > 0 ? selectedProductIds : undefined,
       isRecurring: recurring !== 'none',
       recurringPattern:
         recurring !== 'none'
@@ -185,12 +232,43 @@ const AddEditScheduleScreen: React.FC = () => {
           />
         )}
 
-        <Input
-          label="Time (optional)"
-          value={time}
-          onChangeText={setTime}
-          placeholder="e.g., 10:00 AM"
-        />
+        <Text style={[styles.label, {color: colors.text}]}>Time</Text>
+        <TouchableOpacity
+          onPress={() => {
+            if (!timeEnabled) {
+              setTimeEnabled(true);
+              setShowTimePicker(true);
+            } else {
+              setShowTimePicker(true);
+            }
+          }}>
+          <Card>
+            <View style={styles.dateRow}>
+              <MaterialCommunityIcons name="clock-outline" size={20} color={colors.primary} />
+              <Text style={[styles.dateText, {color: timeEnabled ? colors.text : colors.textSecondary}]}>
+                {timeEnabled ? formatTime(timeDate) : 'No time set — tap to add'}
+              </Text>
+              {timeEnabled && (
+                <TouchableOpacity
+                  onPress={() => {
+                    setTimeEnabled(false);
+                    setShowTimePicker(false);
+                  }}
+                  hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+                  <MaterialCommunityIcons name="close-circle" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+          </Card>
+        </TouchableOpacity>
+        {showTimePicker && (
+          <DateTimePicker
+            value={timeDate}
+            mode="time"
+            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+            onChange={handleTimeChange}
+          />
+        )}
 
         {state.shops.length > 0 && (
           <>
@@ -221,6 +299,44 @@ const AddEditScheduleScreen: React.FC = () => {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </>
+        )}
+
+        {state.products.length > 0 && (
+          <>
+            <Text style={[styles.label, {color: colors.text}]}>
+              Products ({selectedProductIds.length > 0 ? `${selectedProductIds.length} selected` : 'optional'})
+            </Text>
+            <View style={styles.productGrid}>
+              {state.products
+                .filter(p => !p.isAvailable) // Show shopping list items first
+                .concat(state.products.filter(p => p.isAvailable))
+                .map(product => {
+                  const isSelected = selectedProductIds.includes(product.id);
+                  return (
+                    <TouchableOpacity
+                      key={product.id}
+                      style={[
+                        styles.productChip,
+                        {backgroundColor: colors.surface, borderColor: colors.border},
+                        isSelected && {backgroundColor: colors.primary, borderColor: colors.primary},
+                      ]}
+                      onPress={() => toggleProduct(product.id)}>
+                      {isSelected && (
+                        <MaterialCommunityIcons name="check" size={14} color={colors.textInverse} />
+                      )}
+                      <Text
+                        style={[
+                          styles.productChipText,
+                          {color: isSelected ? colors.textInverse : colors.text},
+                        ]}
+                        numberOfLines={1}>
+                        {product.name}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+            </View>
           </>
         )}
 
@@ -381,6 +497,27 @@ const styles = StyleSheet.create({
   },
   completeButton: {
     marginTop: Spacing.lg,
+  },
+  productGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: Spacing.md,
+  },
+  productChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
+    marginRight: Spacing.sm,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    maxWidth: '48%',
+  },
+  productChipText: {
+    fontSize: FontSize.sm,
+    flexShrink: 1,
   },
   footer: {
     position: 'absolute',

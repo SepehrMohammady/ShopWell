@@ -1,17 +1,20 @@
 /**
  * Backup & Restore Service
- * Export all app data as CSV, import CSV to restore
+ * Export all app data as a ZIP archive (CSV + product images)
+ * Import ZIP to fully restore data including images on any device
  */
 
 import RNFS from 'react-native-fs';
 import Share from 'react-native-share';
 import {pick, types} from 'react-native-document-picker';
+import {zip, unzip} from 'react-native-zip-archive';
 import {AppState, Product, Shop, Schedule, ShopProductBrand, AppSettings} from '../types';
+import {getImageFilename, buildImageUri, ensureImagesDir, getImagesDir} from './ImageService';
 
 // CSV column definitions for each data type
 const PRODUCT_COLUMNS = ['id', 'name', 'category', 'isAvailable', 'notes', 'imageUri', 'createdAt', 'updatedAt'];
 const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'createdAt', 'updatedAt'];
-const SCHEDULE_COLUMNS = ['id', 'title', 'shopId', 'date', 'time', 'isRecurring', 'recurringPattern', 'reminder', 'reminderMinutes', 'notes', 'isCompleted', 'createdAt', 'updatedAt'];
+const SCHEDULE_COLUMNS = ['id', 'title', 'shopId', 'productIds', 'date', 'time', 'isRecurring', 'recurringPattern', 'reminder', 'reminderMinutes', 'notes', 'isCompleted', 'createdAt', 'updatedAt'];
 const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'quantity', 'unit', 'lastUpdated'];
 const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'defaultGeofenceRadius', 'nearbyShopAction', 'currency'];
 
@@ -90,13 +93,26 @@ const buildSection = (sectionName: string, columns: string[], rows: any[]): stri
 
 /**
  * Export app state to CSV string
+ * Image URIs are stored as filenames only (images are in the ZIP)
  */
 export const exportToCSV = (state: AppState): string => {
   const sections: string[] = [];
 
-  sections.push(buildSection('Products', PRODUCT_COLUMNS, state.products));
+  // For products, convert imageUri to just the filename
+  const productsForExport = state.products.map(p => ({
+    ...p,
+    imageUri: p.imageUri ? getImageFilename(p.imageUri) : undefined,
+  }));
+
+  sections.push(buildSection('Products', PRODUCT_COLUMNS, productsForExport));
   sections.push(buildSection('Shops', SHOP_COLUMNS, state.shops));
-  sections.push(buildSection('Schedules', SCHEDULE_COLUMNS, state.schedules));
+
+  // Flatten productIds array to pipe-separated string for CSV
+  const schedulesForExport = state.schedules.map(s => ({
+    ...s,
+    productIds: s.productIds?.join('|') || '',
+  }));
+  sections.push(buildSection('Schedules', SCHEDULE_COLUMNS, schedulesForExport));
   sections.push(buildSection('ShopProductBrands', SPB_COLUMNS, state.shopProductBrands));
   sections.push(buildSection('Settings', SETTINGS_COLUMNS, [state.settings]));
 
@@ -159,6 +175,7 @@ const toSchedule = (row: any): Schedule => ({
   id: row.id,
   title: row.title,
   shopId: row.shopId || undefined,
+  productIds: row.productIds ? row.productIds.split('|').filter((s: string) => s) : undefined,
   date: row.date,
   time: row.time || undefined,
   isRecurring: row.isRecurring === 'true',
@@ -272,28 +289,55 @@ export const importFromCSV = (csv: string): AppState => {
 };
 
 /**
- * Export data and share as CSV file
+ * Export data as ZIP archive containing CSV + product images
  */
 export const exportAndShare = async (state: AppState): Promise<boolean> => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const stagingDir = `${RNFS.CachesDirectoryPath}/backup_${timestamp}`;
+
   try {
+    // Create staging directory
+    await RNFS.mkdir(stagingDir);
+    const imagesStaging = `${stagingDir}/images`;
+    await RNFS.mkdir(imagesStaging);
+
+    // Copy product images to staging
+    for (const product of state.products) {
+      if (product.imageUri) {
+        const sourcePath = product.imageUri.replace('file://', '');
+        const exists = await RNFS.exists(sourcePath);
+        if (exists) {
+          const filename = getImageFilename(product.imageUri);
+          await RNFS.copyFile(sourcePath, `${imagesStaging}/${filename}`);
+        }
+      }
+    }
+
+    // Write CSV data
     const csv = exportToCSV(state);
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const fileName = `ShopWell_Backup_${timestamp}.csv`;
-    const filePath = `${RNFS.CachesDirectoryPath}/${fileName}`;
+    await RNFS.writeFile(`${stagingDir}/data.csv`, csv, 'utf8');
 
-    await RNFS.writeFile(filePath, csv, 'utf8');
+    // Create ZIP
+    const zipName = `ShopWell_Backup_${timestamp}.shopwell`;
+    const zipPath = `${RNFS.CachesDirectoryPath}/${zipName}`;
+    await zip(stagingDir, zipPath);
 
+    // Share
     await Share.open({
-      url: `file://${filePath}`,
-      type: 'text/csv',
-      filename: fileName,
+      url: `file://${zipPath}`,
+      type: 'application/zip',
+      filename: zipName,
       title: 'Export ShopWell Backup',
       subject: 'ShopWell Backup',
     });
 
+    // Cleanup staging
+    await RNFS.unlink(stagingDir).catch(() => {});
+
     return true;
   } catch (error: any) {
-    // User cancelled share
+    // Cleanup on error
+    await RNFS.unlink(stagingDir).catch(() => {});
     if (error?.message?.includes('User did not share')) {
       return false;
     }
@@ -303,12 +347,12 @@ export const exportAndShare = async (state: AppState): Promise<boolean> => {
 };
 
 /**
- * Pick a CSV file and import data
+ * Pick a backup file and import data (supports both ZIP and legacy CSV)
  */
 export const pickAndImport = async (): Promise<AppState | null> => {
   try {
     const result = await pick({
-      type: [types.csv, types.plainText, types.allFiles],
+      type: [types.allFiles],
     });
 
     if (!result || result.length === 0) return null;
@@ -316,21 +360,80 @@ export const pickAndImport = async (): Promise<AppState | null> => {
     const file = result[0];
     if (!file.uri) return null;
 
-    // Read file content
-    let content: string;
-    // Handle content:// URIs on Android
+    // Copy to a known temporary path first
+    const tempFile = `${RNFS.CachesDirectoryPath}/import_temp`;
     if (file.uri.startsWith('content://')) {
-      content = await RNFS.readFile(file.uri, 'utf8');
+      await RNFS.copyFile(file.uri, tempFile);
     } else {
       const path = decodeURIComponent(file.uri.replace('file://', ''));
-      content = await RNFS.readFile(path, 'utf8');
+      await RNFS.copyFile(path, tempFile);
     }
 
-    if (!content.includes('[Products]') && !content.includes('[Shops]')) {
-      throw new Error('Invalid backup file. Please select a ShopWell backup CSV file.');
+    // Try to read as plain text first (legacy CSV support)
+    let content: string;
+    try {
+      content = await RNFS.readFile(tempFile, 'utf8');
+    } catch {
+      content = '';
     }
 
-    return importFromCSV(content);
+    if (content.includes('[Products]') || content.includes('[Shops]')) {
+      // Legacy CSV file — parse directly (no images)
+      await RNFS.unlink(tempFile).catch(() => {});
+      return importFromCSV(content);
+    }
+
+    // Try as ZIP archive
+    const extractDir = `${RNFS.CachesDirectoryPath}/import_extract`;
+    await RNFS.unlink(extractDir).catch(() => {});
+    await RNFS.mkdir(extractDir);
+
+    try {
+      await unzip(tempFile, extractDir);
+    } catch {
+      await RNFS.unlink(tempFile).catch(() => {});
+      await RNFS.unlink(extractDir).catch(() => {});
+      throw new Error('Invalid backup file. Please select a ShopWell backup file (.shopwell or .csv).');
+    }
+
+    // Read CSV from archive
+    const csvPath = `${extractDir}/data.csv`;
+    const csvExists = await RNFS.exists(csvPath);
+    if (!csvExists) {
+      await RNFS.unlink(tempFile).catch(() => {});
+      await RNFS.unlink(extractDir).catch(() => {});
+      throw new Error('Invalid backup archive. No data.csv found inside.');
+    }
+
+    const csvContent = await RNFS.readFile(csvPath, 'utf8');
+    const imported = importFromCSV(csvContent);
+
+    // Restore images
+    const imagesDir = `${extractDir}/images`;
+    const imagesExist = await RNFS.exists(imagesDir);
+    if (imagesExist) {
+      await ensureImagesDir();
+      const targetImagesDir = getImagesDir();
+      const imageFiles = await RNFS.readDir(imagesDir);
+      for (const imageFile of imageFiles) {
+        if (imageFile.isFile()) {
+          const destPath = `${targetImagesDir}/${imageFile.name}`;
+          await RNFS.copyFile(imageFile.path, destPath);
+        }
+      }
+
+      // Update product imageUri from filename to full internal path
+      imported.products = imported.products.map(p => ({
+        ...p,
+        imageUri: p.imageUri ? buildImageUri(p.imageUri) : undefined,
+      }));
+    }
+
+    // Cleanup
+    await RNFS.unlink(tempFile).catch(() => {});
+    await RNFS.unlink(extractDir).catch(() => {});
+
+    return imported;
   } catch (error: any) {
     if (error?.message?.includes('canceled') || error?.message?.includes('cancelled')) {
       return null;

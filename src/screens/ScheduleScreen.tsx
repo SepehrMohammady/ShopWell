@@ -35,6 +35,16 @@ const ScheduleScreen: React.FC = () => {
     return shop?.name;
   };
 
+  const getProductNames = (productIds?: string[]): string | undefined => {
+    if (!productIds || productIds.length === 0) return undefined;
+    const names = productIds
+      .map(id => state.products.find(p => p.id === id)?.name)
+      .filter(Boolean);
+    if (names.length === 0) return undefined;
+    if (names.length <= 2) return names.join(', ');
+    return `${names[0]}, ${names[1]} +${names.length - 2} more`;
+  };
+
   // Sort schedules by date
   const sortedSchedules = [...state.schedules].sort(
     (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
@@ -42,6 +52,7 @@ const ScheduleScreen: React.FC = () => {
 
   const renderScheduleItem = ({item}: {item: Schedule}) => {
     const shopName = getShopName(item.shopId);
+    const productNames = getProductNames(item.productIds);
 
     return (
       <Card onPress={() => handleSchedulePress(item.id)} elevated>
@@ -80,6 +91,12 @@ const ScheduleScreen: React.FC = () => {
               <View style={styles.metaRow}>
                 <MaterialCommunityIcons name="store" size={14} color={colors.textSecondary} />
                 <Text style={[styles.scheduleMeta, {color: colors.textSecondary}]}>{shopName}</Text>
+              </View>
+            )}
+            {productNames && (
+              <View style={styles.metaRow}>
+                <MaterialCommunityIcons name="shopping" size={14} color={colors.textSecondary} />
+                <Text style={[styles.scheduleMeta, {color: colors.textSecondary}]} numberOfLines={1}>{productNames}</Text>
               </View>
             )}
             {item.isRecurring && (

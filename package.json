@@ -1,6 +1,6 @@
 {
   "name": "shopwell",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "private": true,
   "scripts": {
     "android": "react-native run-android",
@@ -21,6 +21,7 @@
     "@react-navigation/stack": "^6.3.20",
     "react": "18.2.0",
     "react-native": "0.73.2",
+    "react-native-background-fetch": "^4.3.0",
     "react-native-document-picker": "^9.3.1",
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.14.1",
@@ -30,6 +31,7 @@
     "react-native-screens": "^3.29.0",
     "react-native-share": "^12.2.5",
     "react-native-vector-icons": "^10.0.3",
+    "react-native-zip-archive": "^7.0.2",
     "uuid": "^9.0.1"
   },
   "devDependencies": {

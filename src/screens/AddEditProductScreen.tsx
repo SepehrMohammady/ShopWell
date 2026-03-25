@@ -19,6 +19,7 @@ import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {launchImageLibrary, launchCamera} from 'react-native-image-picker';
+import {saveProductImage} from '../services/ImageService';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import Input from '../components/common/Input';
@@ -406,9 +407,10 @@ export const AddEditProductScreen: React.FC = () => {
             {
               text: 'Camera',
               onPress: () => {
-                launchCamera({mediaType: 'photo', quality: 0.7, maxWidth: 800, maxHeight: 800}, (response) => {
+                launchCamera({mediaType: 'photo', quality: 0.7, maxWidth: 800, maxHeight: 800}, async (response) => {
                   if (!response.didCancel && !response.errorCode && response.assets?.[0]?.uri) {
-                    setImageUri(response.assets[0].uri);
+                    const saved = await saveProductImage(response.assets[0].uri);
+                    setImageUri(saved);
                   }
                 });
               },
@@ -416,9 +418,10 @@ export const AddEditProductScreen: React.FC = () => {
             {
               text: 'Gallery',
               onPress: () => {
-                launchImageLibrary({mediaType: 'photo', quality: 0.7, maxWidth: 800, maxHeight: 800}, (response) => {
+                launchImageLibrary({mediaType: 'photo', quality: 0.7, maxWidth: 800, maxHeight: 800}, async (response) => {
                   if (!response.didCancel && !response.errorCode && response.assets?.[ 0]?.uri) {
-                    setImageUri(response.assets[0].uri);
+                    const saved = await saveProductImage(response.assets[0].uri);
+                    setImageUri(saved);
                   }
                 });
               },

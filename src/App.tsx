@@ -3,13 +3,14 @@
  * A shopping list and shop management app
  */
 
-import React from 'react';
+import React, {useEffect} from 'react';
 import {StatusBar} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {NavigationContainer, DefaultTheme, DarkTheme} from '@react-navigation/native';
 import {AppProvider} from './context/AppContext';
 import {ThemeProvider, useTheme} from './context/ThemeContext';
 import RootNavigator from './navigation/RootNavigator';
+import {initBackgroundWorker} from './services/BackgroundWorkerService';
 
 const AppContent: React.FC = () => {
   const {isDarkMode, colors} = useTheme();
@@ -50,6 +51,10 @@ const AppContent: React.FC = () => {
 };
 
 const App: React.FC = () => {
+  useEffect(() => {
+    initBackgroundWorker();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <ThemeProvider>
