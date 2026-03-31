@@ -15,7 +15,7 @@ import {getImageFilename, buildImageUri, ensureImagesDir, getImagesDir} from './
 const PRODUCT_COLUMNS = ['id', 'name', 'category', 'isAvailable', 'notes', 'imageUri', 'createdAt', 'updatedAt'];
 const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'createdAt', 'updatedAt'];
 const SCHEDULE_COLUMNS = ['id', 'title', 'shopId', 'productIds', 'date', 'time', 'isRecurring', 'recurringPattern', 'reminder', 'reminderMinutes', 'notes', 'isCompleted', 'createdAt', 'updatedAt'];
-const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'quantity', 'unit', 'lastUpdated'];
+const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'quantity', 'unit', 'url', 'lastUpdated'];
 const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'nearbyShopAction', 'currency', 'currencies'];
 
 /**
@@ -205,6 +205,7 @@ const toSPB = (row: any): ShopProductBrand => ({
   currency: row.currency || '€',
   quantity: row.quantity ? parseFloat(row.quantity) : undefined,
   unit: row.unit || undefined,
+  url: row.url || undefined,
   lastUpdated: row.lastUpdated,
 });
 

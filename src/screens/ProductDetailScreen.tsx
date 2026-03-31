@@ -11,6 +11,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
+  Linking,
 } from 'react-native';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -250,6 +251,13 @@ export const ProductDetailScreen: React.FC = () => {
                             <Text style={[styles.cheapestAtShop, {color: colors.success}]}>
                               cheapest here
                             </Text>
+                          )}
+                          {brand.url && (
+                            <TouchableOpacity
+                              onPress={() => Linking.openURL(brand.url!)}
+                              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                              <MaterialCommunityIcons name="open-in-new" size={14} color={colors.primary} style={{marginLeft: 4}} />
+                            </TouchableOpacity>
                           )}
                         </View>
                         <View style={styles.brandPriceColumn}>

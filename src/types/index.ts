@@ -45,6 +45,7 @@ export interface ShopProductBrand {
   currency: string;
   quantity?: number;
   unit?: UnitType;
+  url?: string;
   lastUpdated: string;
 }
 

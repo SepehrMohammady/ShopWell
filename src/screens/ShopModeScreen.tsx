@@ -10,6 +10,7 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
@@ -291,9 +292,18 @@ export const ShopModeScreen: React.FC = () => {
               return (
                 <View key={brand.id} style={styles.brandRow}>
                   <View>
-                    <Text style={[styles.brandName, {color: colors.textSecondary}]}>
-                      {brand.brand}
-                    </Text>
+                    <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                      <Text style={[styles.brandName, {color: colors.textSecondary}]}>
+                        {brand.brand}
+                      </Text>
+                      {brand.url && (
+                        <TouchableOpacity
+                          onPress={() => Linking.openURL(brand.url!)}
+                          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+                          <MaterialCommunityIcons name="open-in-new" size={14} color={colors.primary} style={{marginLeft: 4}} />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     {brand.quantity && brand.unit && (
                       <Text style={[styles.brandQuantity, {color: colors.textLight}]}>
                         {brand.quantity} {brand.unit}

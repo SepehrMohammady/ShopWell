@@ -48,6 +48,7 @@ interface BrandPriceEntry {
   price: string;
   quantity: string;
   unit: UnitType;
+  url: string;
   existingId?: string; // ID of existing ShopProductBrand if editing
 }
 
@@ -109,6 +110,7 @@ export const AddEditProductScreen: React.FC = () => {
           price: spb.price.toString(),
           quantity: spb.quantity ? spb.quantity.toString() : '',
           unit: spb.unit || 'pcs' as UnitType,
+          url: spb.url || '',
           existingId: spb.id,
         }));
       setBrandPrices(existingPrices);
@@ -135,7 +137,7 @@ export const AddEditProductScreen: React.FC = () => {
     }
     setBrandPrices([
       ...brandPrices,
-      {id: generateId(), shopId: sortedShops[0].id, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType},
+      {id: generateId(), shopId: sortedShops[0].id, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType, url: ''},
     ]);
   };
 
@@ -145,7 +147,7 @@ export const AddEditProductScreen: React.FC = () => {
 
   const handleUpdateBrandPrice = (
     id: string,
-    field: 'shopId' | 'brand' | 'price' | 'quantity' | 'unit',
+    field: 'shopId' | 'brand' | 'price' | 'quantity' | 'unit' | 'url',
     value: string,
   ) => {
     setBrandPrices(
@@ -200,6 +202,7 @@ export const AddEditProductScreen: React.FC = () => {
           currency: state.settings.currency,
           quantity: !isNaN(qty) && qty > 0 ? qty : undefined,
           unit: !isNaN(qty) && qty > 0 ? bp.unit : undefined,
+          url: bp.url.trim() || undefined,
           lastUpdated: now,
         };
 
@@ -382,6 +385,19 @@ export const AddEditProductScreen: React.FC = () => {
               </View>
             </View>
           </View>
+
+          {/* Product link - shown for online shops */}
+          {shop?.isOnline && (
+            <View style={{marginTop: Spacing.xs}}>
+              <Input
+                label="Product Link (optional)"
+                value={entry.url}
+                onChangeText={v => handleUpdateBrandPrice(entry.id, 'url', v)}
+                placeholder="https://..."
+                keyboardType="url"
+              />
+            </View>
+          )}
         </View>
       </Card>
     );
