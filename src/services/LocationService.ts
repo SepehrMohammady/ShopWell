@@ -120,39 +120,75 @@ export const calculateDistance = (
 };
 
 /**
- * Check if a position is within a shop's geofence
+ * Check if a position is within any of a shop's geofences (primary + addresses)
  */
 export const isWithinGeofence = (
   userLat: number,
   userLon: number,
   shop: Shop,
 ): boolean => {
-  if (!shop.latitude || !shop.longitude) {
-    return false;
+  // Check primary location
+  if (shop.latitude && shop.longitude) {
+    const distance = calculateDistance(userLat, userLon, shop.latitude, shop.longitude);
+    const radius = shop.geofenceRadius || 200;
+    if (distance <= radius) return true;
   }
 
-  const distance = calculateDistance(userLat, userLon, shop.latitude, shop.longitude);
-  const radius = shop.geofenceRadius || 200;
+  // Check additional addresses
+  if (shop.addresses) {
+    for (const addr of shop.addresses) {
+      if (addr.latitude && addr.longitude) {
+        const distance = calculateDistance(userLat, userLon, addr.latitude, addr.longitude);
+        const radius = addr.geofenceRadius || 200;
+        if (distance <= radius) return true;
+      }
+    }
+  }
 
-  return distance <= radius;
+  return false;
 };
 
 /**
- * Get all shops within range of a location
+ * Get all shops within range of a location (checks all addresses/branches)
  */
 export const getShopsInRange = (
   userLat: number,
   userLon: number,
   shops: Shop[],
 ): Array<{shop: Shop; distance: number}> => {
-  return shops
-    .filter(shop => shop.latitude && shop.longitude && shop.notifyOnNearby)
-    .map(shop => ({
-      shop,
-      distance: calculateDistance(userLat, userLon, shop.latitude!, shop.longitude!),
-    }))
-    .filter(item => item.distance <= (item.shop.geofenceRadius || 200))
-    .sort((a, b) => a.distance - b.distance);
+  const results: Array<{shop: Shop; distance: number}> = [];
+
+  for (const shop of shops) {
+    if (!shop.notifyOnNearby) continue;
+
+    let closestDistance = Infinity;
+
+    // Check primary location
+    if (shop.latitude && shop.longitude) {
+      const dist = calculateDistance(userLat, userLon, shop.latitude, shop.longitude);
+      if (dist <= (shop.geofenceRadius || 200)) {
+        closestDistance = Math.min(closestDistance, dist);
+      }
+    }
+
+    // Check additional addresses
+    if (shop.addresses) {
+      for (const addr of shop.addresses) {
+        if (addr.latitude && addr.longitude && addr.notifyOnNearby !== false) {
+          const dist = calculateDistance(userLat, userLon, addr.latitude, addr.longitude);
+          if (dist <= (addr.geofenceRadius || 200)) {
+            closestDistance = Math.min(closestDistance, dist);
+          }
+        }
+      }
+    }
+
+    if (closestDistance < Infinity) {
+      results.push({shop, distance: closestDistance});
+    }
+  }
+
+  return results.sort((a, b) => a.distance - b.distance);
 };
 
 /**

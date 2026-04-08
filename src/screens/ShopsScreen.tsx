@@ -52,6 +52,9 @@ const ShopsScreen: React.FC = () => {
                   <MaterialCommunityIcons name="map-marker" size={14} color={colors.textSecondary} />
                   <Text style={[styles.shopAddress, {color: colors.textSecondary}]} numberOfLines={1}>
                     {item.address}
+                    {item.addresses && item.addresses.length > 0
+                      ? ` (+${item.addresses.length} branch${item.addresses.length !== 1 ? 'es' : ''})`
+                      : ''}
                   </Text>
                 </View>
               )}

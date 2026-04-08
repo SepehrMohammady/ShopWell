@@ -58,6 +58,8 @@ export const ShopModeScreen: React.FC = () => {
 
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
   const [showWarningsOnly, setShowWarningsOnly] = useState(false);
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'available' | 'onList'>('all');
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const productsAtShop = useMemo((): ProductWithBrands[] => {
     const rawProducts = getProductsForShop(shopId);
@@ -87,6 +89,13 @@ export const ShopModeScreen: React.FC = () => {
   const filteredProducts = useMemo(() => {
     let products = productsAtShop;
 
+    // Filter by availability
+    if (availabilityFilter === 'available') {
+      products = products.filter(p => p.product.isAvailable);
+    } else if (availabilityFilter === 'onList') {
+      products = products.filter(p => !p.product.isAvailable);
+    }
+
     // Filter by category
     if (selectedCategory !== 'all') {
       products = products.filter(p => p.product.category === selectedCategory);
@@ -103,7 +112,7 @@ export const ShopModeScreen: React.FC = () => {
       if (!a.hasBetterPrice && b.hasBetterPrice) return 1;
       return a.product.name.localeCompare(b.product.name);
     });
-  }, [productsAtShop, selectedCategory, showWarningsOnly]);
+  }, [productsAtShop, selectedCategory, showWarningsOnly, availabilityFilter]);
 
   const categories: Array<ProductCategory | 'all'> = [
     'all',
@@ -138,13 +147,18 @@ export const ShopModeScreen: React.FC = () => {
   );
 
   const renderWarningBanner = () => {
+    if (bannerDismissed) return null;
+
     if (cheaperAlternatives.length === 0) {
       return (
         <View style={[styles.successBanner, {backgroundColor: colors.success + '20'}]}>
           <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} style={{marginRight: Spacing.sm}} />
-          <Text style={[styles.successText, {color: colors.success}]}>
+          <Text style={[styles.successText, {color: colors.success, flex: 1}]}>
             All products here have the best prices!
           </Text>
+          <TouchableOpacity onPress={() => setBannerDismissed(true)} hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            <MaterialCommunityIcons name="close" size={18} color={colors.success} />
+          </TouchableOpacity>
         </View>
       );
     }
@@ -164,7 +178,64 @@ export const ShopModeScreen: React.FC = () => {
             Could save {formatPrice(totalSavings, state.settings.currency)} • Tap to {showWarningsOnly ? 'show all' : 'filter'}
           </Text>
         </View>
+        <TouchableOpacity
+          onPress={(e) => { e.stopPropagation(); setBannerDismissed(true); }}
+          hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}
+          style={{padding: 4}}>
+          <MaterialCommunityIcons name="close" size={18} color={colors.warning} />
+        </TouchableOpacity>
       </TouchableOpacity>
+    );
+  };
+
+  const renderAvailabilityFilter = () => {
+    const availableCount = productsAtShop.filter(p => p.product.isAvailable).length;
+    const onListCount = productsAtShop.filter(p => !p.product.isAvailable).length;
+    return (
+      <View style={styles.availabilityContainer}>
+        <TouchableOpacity
+          style={[
+            styles.availabilityChip,
+            {
+              backgroundColor: availabilityFilter === 'all' ? colors.primary : colors.surface,
+              borderColor: availabilityFilter === 'all' ? colors.primary : colors.border,
+            },
+          ]}
+          onPress={() => setAvailabilityFilter('all')}>
+          <MaterialCommunityIcons name="view-list" size={14} color={availabilityFilter === 'all' ? '#FFFFFF' : colors.text} />
+          <Text style={[styles.availabilityText, {color: availabilityFilter === 'all' ? '#FFFFFF' : colors.text}]}>
+            All ({productsAtShop.length})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.availabilityChip,
+            {
+              backgroundColor: availabilityFilter === 'available' ? colors.success : colors.surface,
+              borderColor: availabilityFilter === 'available' ? colors.success : colors.border,
+            },
+          ]}
+          onPress={() => setAvailabilityFilter('available')}>
+          <MaterialCommunityIcons name="check-circle" size={14} color={availabilityFilter === 'available' ? '#FFFFFF' : colors.success} />
+          <Text style={[styles.availabilityText, {color: availabilityFilter === 'available' ? '#FFFFFF' : colors.success}]}>
+            Available ({availableCount})
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.availabilityChip,
+            {
+              backgroundColor: availabilityFilter === 'onList' ? colors.warning : colors.surface,
+              borderColor: availabilityFilter === 'onList' ? colors.warning : colors.border,
+            },
+          ]}
+          onPress={() => setAvailabilityFilter('onList')}>
+          <MaterialCommunityIcons name="cart-outline" size={14} color={availabilityFilter === 'onList' ? '#FFFFFF' : colors.warning} />
+          <Text style={[styles.availabilityText, {color: availabilityFilter === 'onList' ? '#FFFFFF' : colors.warning}]}>
+            On List ({onListCount})
+          </Text>
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -342,6 +413,9 @@ export const ShopModeScreen: React.FC = () => {
       {/* Warning/Success Banner */}
       {renderWarningBanner()}
 
+      {/* Availability Filter */}
+      {renderAvailabilityFilter()}
+
       {/* Category Filter */}
       {renderCategoryFilter()}
 
@@ -445,6 +519,26 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 14,
     fontWeight: '600',
+  },
+  availabilityContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.base,
+    paddingTop: Spacing.base,
+    gap: Spacing.sm,
+  },
+  availabilityChip: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 4,
+  },
+  availabilityText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   categoryContainer: {
     paddingVertical: Spacing.base,

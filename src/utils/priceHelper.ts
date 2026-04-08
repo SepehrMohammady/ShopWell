@@ -6,6 +6,20 @@
 import {PriceComparison, ShopProductBrand, Shop, Product, UnitLabels, UnitType} from '../types';
 
 /**
+ * Normalize quantity to a base unit (g for weight, ml for volume)
+ * Returns null if unit is not a weight/volume type
+ */
+const normalizeToBaseUnit = (quantity: number, unit: UnitType): {quantity: number; baseUnit: 'g' | 'ml'} | null => {
+  switch (unit) {
+    case 'g': return {quantity, baseUnit: 'g'};
+    case 'kg': return {quantity: quantity * 1000, baseUnit: 'g'};
+    case 'ml': return {quantity, baseUnit: 'ml'};
+    case 'L': return {quantity: quantity * 1000, baseUnit: 'ml'};
+    default: return null;
+  }
+};
+
+/**
  * Format a price with currency symbol
  */
 export const formatPrice = (amount: number, currency: string = '€'): string => {
@@ -24,46 +38,77 @@ export const getUnitPrice = (spb: ShopProductBrand): number => {
 };
 
 /**
- * Format unit price string (e.g. "€0.08/pcs")
+ * Format unit price string (e.g. "€0.008/g", "€0.012/ml")
+ * Normalizes to base unit (g or ml) for consistency
  */
 export const formatUnitPrice = (spb: ShopProductBrand, currency: string = '€'): string | null => {
   if (!spb.quantity || spb.quantity <= 0 || !spb.unit) {
     return null;
   }
+  const norm = normalizeToBaseUnit(spb.quantity, spb.unit);
+  if (norm) {
+    const unitPrice = spb.price / norm.quantity;
+    return `${currency}${unitPrice.toFixed(3)}/${norm.baseUnit}`;
+  }
+  // For 'pcs' or unknown units, use raw unit
   const unitPrice = spb.price / spb.quantity;
-  const unitLabel = spb.unit;
-  return `${currency}${unitPrice.toFixed(3)}/${unitLabel}`;
+  return `${currency}${unitPrice.toFixed(3)}/${spb.unit}`;
 };
 
 /**
- * Check if two SPBs can be compared by unit price (same unit type)
+ * Check if two SPBs can be compared by unit price (same or convertible unit type)
  */
 const canCompareByUnit = (a: ShopProductBrand, b: ShopProductBrand): boolean => {
-  return !!(a.quantity && a.quantity > 0 && a.unit && b.quantity && b.quantity > 0 && b.unit && a.unit === b.unit);
+  if (!(a.quantity && a.quantity > 0 && a.unit && b.quantity && b.quantity > 0 && b.unit)) {
+    return false;
+  }
+  if (a.unit === b.unit) return true;
+  // Check if units are convertible (kg/g or L/ml)
+  const normA = normalizeToBaseUnit(a.quantity, a.unit);
+  const normB = normalizeToBaseUnit(b.quantity, b.unit);
+  return !!(normA && normB && normA.baseUnit === normB.baseUnit);
 };
 
 /**
- * Compare two SPBs - use unit price if both have same unit, otherwise absolute price
+ * Get normalized unit price (price per base unit: g or ml)
+ */
+const getNormalizedUnitPrice = (spb: ShopProductBrand): number | null => {
+  if (!spb.quantity || spb.quantity <= 0 || !spb.unit) return null;
+  const norm = normalizeToBaseUnit(spb.quantity, spb.unit);
+  if (!norm) return null;
+  return spb.price / norm.quantity;
+};
+
+/**
+ * Compare two SPBs - use normalized unit price if both have convertible units, otherwise absolute price
  */
 const comparePrice = (a: ShopProductBrand, b: ShopProductBrand): number => {
   if (canCompareByUnit(a, b)) {
-    return getUnitPrice(a) - getUnitPrice(b);
+    const normA = getNormalizedUnitPrice(a);
+    const normB = getNormalizedUnitPrice(b);
+    if (normA !== null && normB !== null) {
+      return normA - normB;
+    }
   }
   return a.price - b.price;
 };
 
 /**
  * Get the effective comparison price for an SPB within a group of same-product brands
- * If brands in the group share the same unit, use unit price; otherwise use absolute price
+ * If brands in the group share convertible units, use normalized unit price; otherwise use absolute price
  */
 const getEffectivePrice = (spb: ShopProductBrand, allBrands: ShopProductBrand[]): number => {
-  // Check if all brands with quantity info share the same unit
+  // Check if all brands with quantity info share convertible units
   const brandsWithUnit = allBrands.filter(b => b.quantity && b.quantity > 0 && b.unit);
   if (brandsWithUnit.length > 1) {
-    const firstUnit = brandsWithUnit[0].unit;
-    const allSameUnit = brandsWithUnit.every(b => b.unit === firstUnit);
-    if (allSameUnit && spb.quantity && spb.quantity > 0 && spb.unit) {
-      return getUnitPrice(spb);
+    const firstNorm = normalizeToBaseUnit(brandsWithUnit[0].quantity!, brandsWithUnit[0].unit!);
+    const allConvertible = firstNorm && brandsWithUnit.every(b => {
+      const norm = normalizeToBaseUnit(b.quantity!, b.unit!);
+      return norm && norm.baseUnit === firstNorm.baseUnit;
+    });
+    if (allConvertible && spb.quantity && spb.quantity > 0 && spb.unit) {
+      const normPrice = getNormalizedUnitPrice(spb);
+      if (normPrice !== null) return normPrice;
     }
   }
   return spb.price;

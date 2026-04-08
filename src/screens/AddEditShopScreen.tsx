@@ -17,7 +17,7 @@ import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Geolocation from '@react-native-community/geolocation';
 import MapView, {PROVIDER_GOOGLE} from 'react-native-maps';
-import {RootStackParamList, Shop, ShopCategory, ShopCategoryInfo} from '../types';
+import {RootStackParamList, Shop, ShopCategory, ShopCategoryInfo, ShopAddress} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Button, Input, Card, useAlert} from '../components/common';
@@ -74,6 +74,12 @@ const AddEditShopScreen: React.FC = () => {
     latitudeDelta: 0.01,
     longitudeDelta: 0.01,
   });
+
+  // Additional addresses/branches
+  const [additionalAddresses, setAdditionalAddresses] = useState<ShopAddress[]>(
+    existingShop?.addresses || [],
+  );
+  const [editingAddressIndex, setEditingAddressIndex] = useState<number | null>(null);
 
   useEffect(() => {
     navigation.setOptions({
@@ -146,6 +152,8 @@ const AddEditShopScreen: React.FC = () => {
       longitude: !isNaN(lng) ? lng : undefined,
       geofenceRadius: !isNaN(radius) && radius > 0 ? radius : 200,
       notifyOnNearby: notifyOnNearby && !isNaN(lat) && !isNaN(lng),
+      // Additional addresses
+      addresses: additionalAddresses.length > 0 ? additionalAddresses : undefined,
       createdAt: existingShop?.createdAt || now,
       updatedAt: now,
     };
@@ -369,6 +377,134 @@ const AddEditShopScreen: React.FC = () => {
                 </TouchableOpacity>
               </>
             )}
+
+            {/* Additional Addresses / Branches */}
+            <Text style={[styles.sectionTitle, {color: colors.text}]}>
+              <MaterialCommunityIcons name="store-marker" size={18} color={colors.text} /> Additional Branches
+            </Text>
+            <Text style={[styles.sectionDescription, {color: colors.textSecondary}]}>
+              Add more locations if this shop has multiple branches
+            </Text>
+
+            {additionalAddresses.map((addr, index) => (
+              <Card key={addr.id}>
+                <View style={{flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm}}>
+                  <Text style={[styles.notifyLabel, {color: colors.text}]}>
+                    Branch {index + 1}{addr.label ? ` — ${addr.label}` : ''}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setAdditionalAddresses(prev => prev.filter((_, i) => i !== index));
+                    }}>
+                    <Text style={{color: colors.error, fontWeight: '500', fontSize: 13}}>✕ Remove</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <Input
+                  label="Label (optional)"
+                  value={addr.label || ''}
+                  onChangeText={(text) => {
+                    setAdditionalAddresses(prev => prev.map((a, i) => i === index ? {...a, label: text} : a));
+                  }}
+                  placeholder="e.g., Downtown, Mall Branch"
+                />
+
+                <Input
+                  label="Address"
+                  value={addr.address || ''}
+                  onChangeText={(text) => {
+                    setAdditionalAddresses(prev => prev.map((a, i) => i === index ? {...a, address: text} : a));
+                  }}
+                  placeholder="e.g., 456 Second Street"
+                />
+
+                <View style={styles.locationButtonsRow}>
+                  <TouchableOpacity
+                    style={[styles.locationButton, {backgroundColor: colors.primary + '15', borderColor: colors.primary}]}
+                    onPress={() => {
+                      Geolocation.getCurrentPosition(
+                        (position) => {
+                          setAdditionalAddresses(prev => prev.map((a, i) => i === index ? {
+                            ...a,
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                          } : a));
+                        },
+                        () => showAlert({title: 'Error', message: 'Could not get your location.'}),
+                        {enableHighAccuracy: true, timeout: 15000, maximumAge: 10000},
+                      );
+                    }}>
+                    <MaterialCommunityIcons name="crosshairs-gps" size={18} color={colors.primary} />
+                    <Text style={[styles.locationButtonText, {color: colors.primary}]}>GPS</Text>
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.coordinateRow}>
+                  <View style={styles.coordinateField}>
+                    <Input
+                      label="Latitude"
+                      value={addr.latitude?.toString() || ''}
+                      onChangeText={(text) => {
+                        setAdditionalAddresses(prev => prev.map((a, i) => i === index ? {...a, latitude: parseFloat(text) || undefined} : a));
+                      }}
+                      placeholder="e.g., 45.4642"
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                  <View style={styles.coordinateField}>
+                    <Input
+                      label="Longitude"
+                      value={addr.longitude?.toString() || ''}
+                      onChangeText={(text) => {
+                        setAdditionalAddresses(prev => prev.map((a, i) => i === index ? {...a, longitude: parseFloat(text) || undefined} : a));
+                      }}
+                      placeholder="e.g., 9.1900"
+                      keyboardType="decimal-pad"
+                    />
+                  </View>
+                </View>
+
+                {addr.latitude && addr.longitude && (
+                  <TouchableOpacity
+                    style={[
+                      styles.notifyRow,
+                      {
+                        backgroundColor: addr.notifyOnNearby ? colors.primary + '15' : colors.surface,
+                        borderColor: addr.notifyOnNearby ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => {
+                      setAdditionalAddresses(prev => prev.map((a, i) => i === index ? {...a, notifyOnNearby: !a.notifyOnNearby} : a));
+                    }}
+                    activeOpacity={0.7}>
+                    <View style={styles.notifyContent}>
+                      <Text style={[styles.notifyLabel, {color: colors.text}]}>Notify when nearby</Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name={addr.notifyOnNearby ? 'bell' : 'bell-off'}
+                      size={22}
+                      color={addr.notifyOnNearby ? colors.primary : colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                )}
+              </Card>
+            ))}
+
+            <TouchableOpacity
+              style={[styles.addAddressButton, {borderColor: colors.primary}]}
+              onPress={() => {
+                const newAddr: ShopAddress = {
+                  id: generateId(),
+                  notifyOnNearby: true,
+                  geofenceRadius: 200,
+                };
+                setAdditionalAddresses(prev => [...prev, newAddr]);
+              }}>
+              <MaterialCommunityIcons name="plus" size={20} color={colors.primary} />
+              <Text style={{color: colors.primary, fontWeight: '600', fontSize: 14, marginLeft: Spacing.xs}}>
+                Add Branch
+              </Text>
+            </TouchableOpacity>
           </>
         )}
       </ScrollView>
@@ -568,6 +704,16 @@ const styles = StyleSheet.create({
   locationButtonText: {
     fontSize: 13,
     fontWeight: '500',
+  },
+  addAddressButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.base,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    marginBottom: Spacing.base,
   },
   mapContainer: {
     flex: 1,

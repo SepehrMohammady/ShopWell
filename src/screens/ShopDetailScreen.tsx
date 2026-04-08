@@ -10,7 +10,7 @@ import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityI
 import {RootStackParamList, ShopCategoryInfo} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
-import {Card, EmptyState, Button} from '../components/common';
+import {Card, EmptyState, Button, useAlert} from '../components/common';
 import {Spacing, FontSize, CategoryColors} from '../constants';
 import {formatDate, getCurrentTimestamp} from '../utils';
 import {formatPrice, getCheaperAlternatives} from '../utils/priceHelper';
@@ -21,8 +21,9 @@ type RouteProps = RouteProp<RootStackParamList, 'ShopDetail'>;
 const ShopDetailScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const {state, updateShop, getProductsForShop} = useApp();
+  const {state, updateShop, deleteShop, getProductsForShop} = useApp();
   const {colors} = useTheme();
+  const {showAlert} = useAlert();
 
   const shopId = route.params.shopId;
   const shop = state.shops.find(s => s.id === shopId);
@@ -42,15 +43,40 @@ const ShopDetailScreen: React.FC = () => {
       navigation.setOptions({
         title: shop.name,
         headerRight: () => (
-          <TouchableOpacity
-            onPress={() => navigation.navigate('AddEditShop', {shopId})}
-            style={styles.headerButton}>
-            <Text style={styles.editText}>Edit</Text>
-          </TouchableOpacity>
+          <View style={{flexDirection: 'row', alignItems: 'center'}}>
+            <TouchableOpacity
+              onPress={handleDelete}
+              style={styles.headerButton}>
+              <Text style={[styles.deleteText, {color: '#E74C3C'}]}>Delete</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => navigation.navigate('AddEditShop', {shopId})}
+              style={styles.headerButton}>
+              <Text style={styles.editText}>Edit</Text>
+            </TouchableOpacity>
+          </View>
         ),
       });
     }
   }, [shop]);
+
+  const handleDelete = () => {
+    showAlert({
+      title: 'Delete Shop',
+      message: `Are you sure you want to delete "${shop?.name}"? This will also remove all product prices associated with this shop.`,
+      buttons: [
+        {text: 'Cancel', style: 'cancel'},
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteShop(shopId);
+            navigation.goBack();
+          },
+        },
+      ],
+    });
+  };
 
   if (!shop) {
     return (
@@ -106,6 +132,30 @@ const ShopDetailScreen: React.FC = () => {
             <View style={{flexDirection: 'row', alignItems: 'center'}}><MaterialCommunityIcons name="map-marker" size={16} color={colors.textSecondary} /><Text style={[styles.detailLabel, {color: colors.textSecondary, marginLeft: 4}]}>Address</Text></View>
             <Text style={[styles.detailValue, {color: colors.text}]}>{shop.address}</Text>
           </Card>
+        )}
+
+        {/* Additional Branches */}
+        {shop.addresses && shop.addresses.length > 0 && (
+          <>
+            {shop.addresses.map((addr, index) => (
+              <Card key={addr.id}>
+                <View style={{flexDirection: 'row', alignItems: 'center'}}>
+                  <MaterialCommunityIcons name="store-marker" size={16} color={colors.textSecondary} />
+                  <Text style={[styles.detailLabel, {color: colors.textSecondary, marginLeft: 4}]}>
+                    {addr.label || `Branch ${index + 1}`}
+                  </Text>
+                </View>
+                {addr.address && (
+                  <Text style={[styles.detailValue, {color: colors.text}]}>{addr.address}</Text>
+                )}
+                {addr.latitude && addr.longitude && (
+                  <Text style={[{color: colors.textSecondary, fontSize: 12, marginTop: 2}]}>
+                    📍 {addr.latitude.toFixed(4)}, {addr.longitude.toFixed(4)}
+                  </Text>
+                )}
+              </Card>
+            ))}
+          </>
         )}
 
         {/* Website */}
@@ -232,6 +282,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
   },
   editText: {
+    fontSize: FontSize.base,
+    fontWeight: '500',
+  },
+  deleteText: {
     fontSize: FontSize.base,
     fontWeight: '500',
   },

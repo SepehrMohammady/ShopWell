@@ -69,21 +69,34 @@ export type ShopCategory =
   | 'homeGoods'
   | 'other';
 
+// Shop address/branch with location
+export interface ShopAddress {
+  id: string;
+  label?: string; // e.g. "Main Branch", "Downtown"
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  geofenceRadius?: number; // meters, default 200
+  notifyOnNearby?: boolean;
+}
+
 // Shop
 export interface Shop {
   id: string;
   name: string;
-  address?: string;
+  address?: string; // Primary address (backward compat)
   category: ShopCategory;
   notes?: string;
   isFavorite: boolean;
   isOnline?: boolean;
   url?: string;
-  // Location fields for geofencing (physical shops only)
+  // Location fields for primary address (backward compat)
   latitude?: number;
   longitude?: number;
   geofenceRadius?: number; // meters, default 200
   notifyOnNearby?: boolean;
+  // Multiple addresses/branches
+  addresses?: ShopAddress[];
   createdAt: string;
   updatedAt: string;
 }
