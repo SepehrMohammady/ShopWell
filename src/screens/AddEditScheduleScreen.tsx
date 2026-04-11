@@ -36,13 +36,7 @@ const recurringOptions = [
   {id: 'monthly', label: 'Monthly'},
 ];
 
-const reminderOptions = [
-  {id: 0, label: 'No Reminder'},
-  {id: 15, label: '15 minutes before'},
-  {id: 30, label: '30 minutes before'},
-  {id: 60, label: '1 hour before'},
-  {id: 1440, label: '1 day before'},
-];
+
 
 const AddEditScheduleScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -88,13 +82,14 @@ const AddEditScheduleScreen: React.FC = () => {
   const [recurring, setRecurring] = useState<string>(
     existingSchedule?.recurringPattern || 'none',
   );
-  const [reminderMinutes, setReminderMinutes] = useState(
-    existingSchedule?.reminderMinutes || 0,
+  const [reminderEnabled, setReminderEnabled] = useState(
+    existingSchedule?.reminder || false,
   );
   const [notes, setNotes] = useState(existingSchedule?.notes || '');
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [productSearch, setProductSearch] = useState('');
+  const [productsExpanded, setProductsExpanded] = useState(false);
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -195,8 +190,8 @@ const AddEditScheduleScreen: React.FC = () => {
         recurring !== 'none'
           ? (recurring as 'daily' | 'weekly' | 'monthly')
           : undefined,
-      reminder: reminderMinutes > 0,
-      reminderMinutes: reminderMinutes > 0 ? reminderMinutes : undefined,
+      reminder: reminderEnabled,
+      reminderMinutes: reminderEnabled ? 0 : undefined,
       notes: notes.trim() || undefined,
       isCompleted: existingSchedule?.isCompleted || false,
       createdAt: existingSchedule?.createdAt || now,
@@ -210,7 +205,7 @@ const AddEditScheduleScreen: React.FC = () => {
     }
 
     // Register or cancel the reminder notification
-    if (schedule.reminder && schedule.reminderMinutes) {
+    if (schedule.reminder) {
       const shopName = schedule.shopId
         ? state.shops.find(s => s.id === schedule.shopId)?.name
         : undefined;
@@ -355,9 +350,22 @@ const AddEditScheduleScreen: React.FC = () => {
 
         {state.products.length > 0 && (
           <>
-            <Text style={[styles.label, {color: colors.text}]}>
-              Products ({selectedProductIds.length > 0 ? `${selectedProductIds.length} selected` : 'optional'})
-            </Text>
+            <TouchableOpacity
+              onPress={() => setProductsExpanded(!productsExpanded)}
+              style={styles.collapsibleHeader}
+              activeOpacity={0.7}>
+              <Text style={[styles.label, {color: colors.text, marginTop: Spacing.md, marginBottom: 0}]}>
+                Products ({selectedProductIds.length > 0 ? `${selectedProductIds.length} selected` : 'optional'})
+              </Text>
+              <MaterialCommunityIcons
+                name={productsExpanded ? 'chevron-up' : 'chevron-down'}
+                size={22}
+                color={colors.textSecondary}
+                style={{marginTop: Spacing.md}}
+              />
+            </TouchableOpacity>
+            {productsExpanded && (
+              <>
             {/* Search + quick actions */}
             <View style={styles.productActions}>
               <View style={[styles.searchBox, {backgroundColor: colors.surface, borderColor: colors.border}]}>
@@ -441,6 +449,8 @@ const AddEditScheduleScreen: React.FC = () => {
                 No products match "{productSearch}"
               </Text>
             )}
+              </>
+            )}
           </>
         )}
 
@@ -468,27 +478,33 @@ const AddEditScheduleScreen: React.FC = () => {
         </View>
 
         <Text style={[styles.label, {color: colors.text}]}>Reminder</Text>
-        <View style={styles.optionColumn}>
-          {reminderOptions.map(option => (
-            <TouchableOpacity
-              key={option.id}
-              style={[
-                styles.reminderItem,
-                {backgroundColor: colors.surface, borderColor: colors.border},
-                reminderMinutes === option.id && {backgroundColor: colors.primary, borderColor: colors.primary},
-              ]}
-              onPress={() => setReminderMinutes(option.id)}>
-              <Text
-                style={[
-                  styles.reminderText,
-                  {color: colors.text},
-                  reminderMinutes === option.id && {color: colors.textInverse},
-                ]}>
-                {option.label}
+        <TouchableOpacity
+          style={[
+            styles.reminderToggle,
+            {backgroundColor: colors.surface, borderColor: reminderEnabled ? colors.primary : colors.border},
+            reminderEnabled && {backgroundColor: colors.primary + '10'},
+          ]}
+          onPress={() => setReminderEnabled(!reminderEnabled)}
+          activeOpacity={0.7}>
+          <MaterialCommunityIcons
+            name={reminderEnabled ? 'bell-ring' : 'bell-off-outline'}
+            size={20}
+            color={reminderEnabled ? colors.primary : colors.textSecondary}
+          />
+          <View style={styles.reminderToggleInfo}>
+            <Text style={[styles.reminderToggleText, {color: reminderEnabled ? colors.primary : colors.text}]}>
+              {reminderEnabled ? 'Reminder On' : 'No Reminder'}
+            </Text>
+            {reminderEnabled && (
+              <Text style={[styles.reminderToggleHint, {color: colors.textSecondary}]}>
+                Notifies at the scheduled time
               </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            )}
+          </View>
+          <View style={[styles.toggleSwitch, {backgroundColor: reminderEnabled ? colors.primary : colors.border}]}>
+            <View style={[styles.toggleKnob, reminderEnabled && styles.toggleKnobActive]} />
+          </View>
+        </TouchableOpacity>
 
         <Input
           label="Notes (optional)"
@@ -599,6 +615,42 @@ const styles = StyleSheet.create({
   reminderText: {
     fontSize: FontSize.sm,
   },
+  reminderToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.md,
+    borderRadius: 10,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  reminderToggleInfo: {
+    flex: 1,
+  },
+  reminderToggleText: {
+    fontSize: FontSize.base,
+    fontWeight: '500',
+  },
+  reminderToggleHint: {
+    fontSize: FontSize.xs,
+    marginTop: 2,
+  },
+  toggleSwitch: {
+    width: 44,
+    height: 24,
+    borderRadius: 12,
+    padding: 2,
+    justifyContent: 'center',
+  },
+  toggleKnob: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#fff',
+  },
+  toggleKnobActive: {
+    alignSelf: 'flex-end',
+  },
   completeButton: {
     marginTop: Spacing.lg,
   },
@@ -697,6 +749,12 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: Spacing.lg,
     fontSize: FontSize.sm,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
   },
   footer: {
     position: 'absolute',

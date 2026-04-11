@@ -23,7 +23,7 @@ import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import {RootStackParamList, ProductCategoryInfo} from '../types';
 import {Spacing} from '../constants';
-import {formatPrice, formatUnitPrice, getAllPricesForProduct, getPriceRange} from '../utils/priceHelper';
+import {formatPrice, formatUnitPrice, getAllPricesForProduct, getPriceRange, getEffectivePrice} from '../utils/priceHelper';
 
 type NavigationProp = StackNavigationProp<RootStackParamList, 'ProductDetail'>;
 type RouteType = RouteProp<RootStackParamList, 'ProductDetail'>;
@@ -50,7 +50,8 @@ export const ProductDetailScreen: React.FC = () => {
   const allPrices = getAllPricesForProduct(productId, state.shopProductBrands, state.shops);
   const priceRange = getPriceRange(productId, state.shopProductBrands);
   const totalBrands = state.shopProductBrands.filter(spb => spb.productId === productId).length;
-  const globalBestPrice = allPrices.length > 0 ? allPrices[0].cheapestPrice : Infinity;
+  const allBrandsForProduct = state.shopProductBrands.filter(spb => spb.productId === productId);
+  const globalBestEffective = allPrices.length > 0 ? allPrices[0].effectivePrice : Infinity;
 
   const handleEdit = () => {
     navigation.navigate('AddEditProduct', {productId});
@@ -201,8 +202,7 @@ export const ProductDetailScreen: React.FC = () => {
         </Card>
       ) : (
         allPrices.map((shopData, shopIndex) => {
-          const bestPrice = allPrices[0].cheapestPrice;
-          const isCheapestShop = shopData.cheapestPrice === bestPrice;
+          const isCheapestShop = shopData.effectivePrice === allPrices[0].effectivePrice;
           
           return (
             <Card 
@@ -247,7 +247,7 @@ export const ProductDetailScreen: React.FC = () => {
                           <Text style={[styles.brandName, {color: colors.text}]}>
                             {brand.brand}
                           </Text>
-                          {brand.price === globalBestPrice && totalBrands > 1 && (
+                          {getEffectivePrice(brand, allBrandsForProduct) === globalBestEffective && totalBrands > 1 && (
                             <Text style={[styles.cheapestAtShop, {color: colors.success}]}>
                               cheapest here
                             </Text>

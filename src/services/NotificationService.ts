@@ -120,7 +120,7 @@ export const scheduleReminderNotification = async (
   schedule: Schedule,
   shopName?: string,
 ): Promise<void> => {
-  if (!schedule.reminder || !schedule.reminderMinutes) return;
+  if (!schedule.reminder) return;
 
   try {
     const scheduleDate = new Date(schedule.date);
@@ -136,8 +136,8 @@ export const scheduleReminderNotification = async (
       }
     }
 
-    const triggerTime =
-      scheduleDate.getTime() - schedule.reminderMinutes * 60 * 1000;
+    const reminderOffset = (schedule.reminderMinutes || 0) * 60 * 1000;
+    const triggerTime = scheduleDate.getTime() - reminderOffset;
 
     // Don't schedule if the trigger time is in the past
     if (triggerTime <= Date.now()) return;
@@ -155,13 +155,6 @@ export const scheduleReminderNotification = async (
 
     let body = `Shopping trip: ${schedule.title}`;
     if (shopName) body += ` at ${shopName}`;
-    if (schedule.reminderMinutes >= 60) {
-      body += ` in ${schedule.reminderMinutes / 60} hour${
-        schedule.reminderMinutes > 60 ? 's' : ''
-      }`;
-    } else {
-      body += ` in ${schedule.reminderMinutes} minutes`;
-    }
 
     await notifee.createTriggerNotification(
       {

@@ -102,7 +102,7 @@ const comparePrice = (a: ShopProductBrand, b: ShopProductBrand): number => {
  * Get the effective comparison price for an SPB within a group of same-product brands
  * If brands in the group share convertible units, use normalized unit price; otherwise use absolute price
  */
-const getEffectivePrice = (spb: ShopProductBrand, allBrands: ShopProductBrand[]): number => {
+export const getEffectivePrice = (spb: ShopProductBrand, allBrands: ShopProductBrand[]): number => {
   // Check if all brands with quantity info share convertible units
   const brandsWithUnit = allBrands.filter(b => b.quantity && b.quantity > 0 && b.unit);
   if (brandsWithUnit.length > 1) {
@@ -234,7 +234,7 @@ export const getAllPricesForProduct = (
   productId: string,
   shopProductBrands: ShopProductBrand[],
   shops: Shop[],
-): Array<{shop: Shop; brands: ShopProductBrand[]; cheapestPrice: number}> => {
+): Array<{shop: Shop; brands: ShopProductBrand[]; cheapestPrice: number; effectivePrice: number}> => {
   const allBrands = shopProductBrands.filter(spb => spb.productId === productId);
   
   // Group by shop
@@ -249,9 +249,10 @@ export const getAllPricesForProduct = (
         .filter(spb => spb.shopId === shopId)
         .sort((a, b) => comparePrice(a, b));
       const cheapestPrice = brands.length > 0 ? brands[0].price : Infinity;
-      return shop ? {shop, brands, cheapestPrice} : null;
+      const effectivePrice = brands.length > 0 ? getEffectivePrice(brands[0], allBrands) : Infinity;
+      return shop ? {shop, brands, cheapestPrice, effectivePrice} : null;
     })
-    .filter((item): item is {shop: Shop; brands: ShopProductBrand[]; cheapestPrice: number} => item !== null)
+    .filter((item): item is {shop: Shop; brands: ShopProductBrand[]; cheapestPrice: number; effectivePrice: number} => item !== null)
     .sort((a, b) => {
       // Sort shops by their cheapest brand using unit-aware comparison
       if (a.brands.length > 0 && b.brands.length > 0) {
