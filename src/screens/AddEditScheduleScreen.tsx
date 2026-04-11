@@ -89,7 +89,10 @@ const AddEditScheduleScreen: React.FC = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [productSearch, setProductSearch] = useState('');
-  const [productsExpanded, setProductsExpanded] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+
+  const toggleGroup = (key: string) =>
+    setExpandedGroups(prev => ({...prev, [key]: !prev[key]}));
 
   const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
     setShowDatePicker(Platform.OS === 'ios');
@@ -316,144 +319,6 @@ const AddEditScheduleScreen: React.FC = () => {
           />
         )}
 
-        {state.shops.length > 0 && (
-          <>
-            <Text style={[styles.label, {color: colors.text}]}>Assign to Shop (optional)</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.horizontalScroll}>
-              <TouchableOpacity
-                style={[
-                  styles.selectItem,
-                  {backgroundColor: colors.surface, borderColor: colors.border},
-                  !selectedShopId && {backgroundColor: colors.primary, borderColor: colors.primary},
-                ]}
-                onPress={() => setSelectedShopId('')}>
-                <Text style={[styles.selectItemText, {color: !selectedShopId ? colors.textInverse : colors.text}]}>None</Text>
-              </TouchableOpacity>
-              {state.shops.map(shop => (
-                <TouchableOpacity
-                  key={shop.id}
-                  style={[
-                    styles.selectItem,
-                    {backgroundColor: colors.surface, borderColor: colors.border},
-                    selectedShopId === shop.id && {backgroundColor: colors.primary, borderColor: colors.primary},
-                  ]}
-                  onPress={() => setSelectedShopId(shop.id)}>
-                  <Text style={[styles.selectItemText, {color: selectedShopId === shop.id ? colors.textInverse : colors.text}]}>{shop.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </>
-        )}
-
-        {state.products.length > 0 && (
-          <>
-            <TouchableOpacity
-              onPress={() => setProductsExpanded(!productsExpanded)}
-              style={styles.collapsibleHeader}
-              activeOpacity={0.7}>
-              <Text style={[styles.label, {color: colors.text, marginTop: Spacing.md, marginBottom: 0}]}>
-                Products ({selectedProductIds.length > 0 ? `${selectedProductIds.length} selected` : 'optional'})
-              </Text>
-              <MaterialCommunityIcons
-                name={productsExpanded ? 'chevron-up' : 'chevron-down'}
-                size={22}
-                color={colors.textSecondary}
-                style={{marginTop: Spacing.md}}
-              />
-            </TouchableOpacity>
-            {productsExpanded && (
-              <>
-            {/* Search + quick actions */}
-            <View style={styles.productActions}>
-              <View style={[styles.searchBox, {backgroundColor: colors.surface, borderColor: colors.border}]}>
-                <MaterialCommunityIcons name="magnify" size={18} color={colors.textSecondary} />
-                <TextInput
-                  style={[styles.searchInput, {color: colors.text}]}
-                  placeholder="Search products..."
-                  placeholderTextColor={colors.textSecondary}
-                  value={productSearch}
-                  onChangeText={setProductSearch}
-                />
-                {productSearch.length > 0 && (
-                  <TouchableOpacity onPress={() => setProductSearch('')}>
-                    <MaterialCommunityIcons name="close-circle" size={16} color={colors.textSecondary} />
-                  </TouchableOpacity>
-                )}
-              </View>
-              <View style={styles.quickActions}>
-                <TouchableOpacity onPress={selectAllProducts}>
-                  <Text style={[styles.quickActionText, {color: colors.primary}]}>Select All</Text>
-                </TouchableOpacity>
-                <Text style={{color: colors.textSecondary}}>•</Text>
-                <TouchableOpacity onPress={deselectAllProducts}>
-                  <Text style={[styles.quickActionText, {color: colors.textSecondary}]}>Clear</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            {/* Grouped product list */}
-            {groupedProducts.map(group => (
-              <View key={group.key} style={styles.productGroup}>
-                <View style={styles.groupHeader}>
-                  <Text style={[styles.groupTitle, {color: colors.textSecondary}]}>{group.title}</Text>
-                  <View style={[styles.groupLine, {backgroundColor: colors.border}]} />
-                </View>
-                {group.items.map(product => {
-                  const isSelected = selectedProductIds.includes(product.id);
-                  return (
-                    <TouchableOpacity
-                      key={product.id}
-                      style={[
-                        styles.productItem,
-                        {backgroundColor: colors.surface, borderColor: isSelected ? colors.primary : colors.border},
-                        isSelected && {backgroundColor: colors.primary + '10'},
-                      ]}
-                      onPress={() => toggleProduct(product.id)}
-                      activeOpacity={0.7}>
-                      <View style={styles.productCheckbox}>
-                        <MaterialCommunityIcons
-                          name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                          size={22}
-                          color={isSelected ? colors.primary : colors.textSecondary}
-                        />
-                      </View>
-                      {product.imageUri ? (
-                        <Image source={{uri: product.imageUri}} style={styles.productThumb} />
-                      ) : (
-                        <View style={[styles.productThumbPlaceholder, {backgroundColor: colors.border}]}>
-                          <MaterialCommunityIcons name="package-variant" size={16} color={colors.textSecondary} />
-                        </View>
-                      )}
-                      <View style={styles.productInfo}>
-                        <Text style={[styles.productName, {color: colors.text}]} numberOfLines={1}>
-                          {product.name}
-                        </Text>
-                        <Text style={[styles.productCategory, {color: colors.textSecondary}]}>
-                          {ProductCategoryInfo[product.category]?.label || product.category}
-                        </Text>
-                      </View>
-                      {!product.isAvailable && (
-                        <View style={[styles.needTag, {backgroundColor: colors.warning + '20'}]}>
-                          <Text style={[styles.needTagText, {color: colors.warning}]}>Need</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            ))}
-            {groupedProducts.length === 0 && productSearch.length > 0 && (
-              <Text style={[styles.emptySearch, {color: colors.textSecondary}]}>
-                No products match "{productSearch}"
-              </Text>
-            )}
-              </>
-            )}
-          </>
-        )}
-
         <Text style={[styles.label, {color: colors.text}]}>Repeat</Text>
         <View style={styles.optionRow}>
           {recurringOptions.map(option => (
@@ -505,6 +370,148 @@ const AddEditScheduleScreen: React.FC = () => {
             <View style={[styles.toggleKnob, reminderEnabled && styles.toggleKnobActive]} />
           </View>
         </TouchableOpacity>
+
+        {state.shops.length > 0 && (
+          <>
+            <Text style={[styles.label, {color: colors.text}]}>Assign to Shop (optional)</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.horizontalScroll}>
+              <TouchableOpacity
+                style={[
+                  styles.selectItem,
+                  {backgroundColor: colors.surface, borderColor: colors.border},
+                  !selectedShopId && {backgroundColor: colors.primary, borderColor: colors.primary},
+                ]}
+                onPress={() => setSelectedShopId('')}>
+                <Text style={[styles.selectItemText, {color: !selectedShopId ? colors.textInverse : colors.text}]}>None</Text>
+              </TouchableOpacity>
+              {state.shops.map(shop => (
+                <TouchableOpacity
+                  key={shop.id}
+                  style={[
+                    styles.selectItem,
+                    {backgroundColor: colors.surface, borderColor: colors.border},
+                    selectedShopId === shop.id && {backgroundColor: colors.primary, borderColor: colors.primary},
+                  ]}
+                  onPress={() => setSelectedShopId(shop.id)}>
+                  <Text style={[styles.selectItemText, {color: selectedShopId === shop.id ? colors.textInverse : colors.text}]}>{shop.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </>
+        )}
+
+        {state.products.length > 0 && (
+          <>
+            <Text style={[styles.label, {color: colors.text}]}>
+              Products ({selectedProductIds.length > 0 ? `${selectedProductIds.length} selected` : 'optional'})
+            </Text>
+            {/* Search + quick actions */}
+            <View style={styles.productActions}>
+              <View style={[styles.searchBox, {backgroundColor: colors.surface, borderColor: colors.border}]}>
+                <MaterialCommunityIcons name="magnify" size={18} color={colors.textSecondary} />
+                <TextInput
+                  style={[styles.searchInput, {color: colors.text}]}
+                  placeholder="Search products..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={productSearch}
+                  onChangeText={setProductSearch}
+                />
+                {productSearch.length > 0 && (
+                  <TouchableOpacity onPress={() => setProductSearch('')}>
+                    <MaterialCommunityIcons name="close-circle" size={16} color={colors.textSecondary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <View style={styles.quickActions}>
+                <TouchableOpacity onPress={selectAllProducts}>
+                  <Text style={[styles.quickActionText, {color: colors.primary}]}>Select All</Text>
+                </TouchableOpacity>
+                <Text style={{color: colors.textSecondary}}>•</Text>
+                <TouchableOpacity onPress={deselectAllProducts}>
+                  <Text style={[styles.quickActionText, {color: colors.textSecondary}]}>Clear</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+            {/* Per-category collapsible groups */}
+            {groupedProducts.map(group => {
+              const isGroupExpanded = !!expandedGroups[group.key];
+              const selectedInGroup = group.items.filter(p =>
+                selectedProductIds.includes(p.id),
+              ).length;
+              return (
+                <View key={group.key} style={styles.productGroup}>
+                  <TouchableOpacity
+                    onPress={() => toggleGroup(group.key)}
+                    style={[styles.groupHeader, styles.groupHeaderTouchable]}
+                    activeOpacity={0.7}>
+                    <Text style={[styles.groupTitle, {color: colors.textSecondary}]}>{group.title}</Text>
+                    {selectedInGroup > 0 && (
+                      <View style={[styles.groupBadge, {backgroundColor: colors.primary}]}>
+                        <Text style={styles.groupBadgeText}>{selectedInGroup}</Text>
+                      </View>
+                    )}
+                    <View style={[styles.groupLine, {backgroundColor: colors.border}]} />
+                    <MaterialCommunityIcons
+                      name={isGroupExpanded ? 'chevron-up' : 'chevron-down'}
+                      size={18}
+                      color={colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                  {isGroupExpanded && group.items.map(product => {
+                    const isSelected = selectedProductIds.includes(product.id);
+                    return (
+                      <TouchableOpacity
+                        key={product.id}
+                        style={[
+                          styles.productItem,
+                          {backgroundColor: colors.surface, borderColor: isSelected ? colors.primary : colors.border},
+                          isSelected && {backgroundColor: colors.primary + '10'},
+                        ]}
+                        onPress={() => toggleProduct(product.id)}
+                        activeOpacity={0.7}>
+                        <View style={styles.productCheckbox}>
+                          <MaterialCommunityIcons
+                            name={isSelected ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                            size={22}
+                            color={isSelected ? colors.primary : colors.textSecondary}
+                          />
+                        </View>
+                        {product.imageUri ? (
+                          <Image source={{uri: product.imageUri}} style={styles.productThumb} />
+                        ) : (
+                          <View style={[styles.productThumbPlaceholder, {backgroundColor: colors.border}]}>
+                            <MaterialCommunityIcons name="package-variant" size={16} color={colors.textSecondary} />
+                          </View>
+                        )}
+                        <View style={styles.productInfo}>
+                          <Text style={[styles.productName, {color: colors.text}]} numberOfLines={1}>
+                            {product.name}
+                          </Text>
+                          <Text style={[styles.productCategory, {color: colors.textSecondary}]}>
+                            {ProductCategoryInfo[product.category]?.label || product.category}
+                          </Text>
+                        </View>
+                        {!product.isAvailable && (
+                          <View style={[styles.needTag, {backgroundColor: colors.warning + '20'}]}>
+                            <Text style={[styles.needTagText, {color: colors.warning}]}>Need</Text>
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              );
+            })}
+            {groupedProducts.length === 0 && productSearch.length > 0 && (
+              <Text style={[styles.emptySearch, {color: colors.textSecondary}]}>
+                No products match "{productSearch}"
+              </Text>
+            )}
+          </>
+        )}
 
         <Input
           label="Notes (optional)"
@@ -690,6 +697,22 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
     gap: Spacing.sm,
   },
+  groupHeaderTouchable: {
+    paddingVertical: Spacing.xs,
+  },
+  groupBadge: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  groupBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+  },
   groupTitle: {
     fontSize: FontSize.xs,
     fontWeight: '600',
@@ -749,12 +772,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: Spacing.lg,
     fontSize: FontSize.sm,
-  },
-  collapsibleHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
   },
   footer: {
     position: 'absolute',
