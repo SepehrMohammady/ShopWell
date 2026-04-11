@@ -13,7 +13,6 @@ import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList, Shop} from '../types';
 import {getShopsInRange} from '../services/LocationService';
-import {showLocalNotification, createShopNotification, shouldNotifyForShop} from '../services/NotificationService';
 import {Spacing} from '../constants';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -56,11 +55,6 @@ const NearbyShopBanner: React.FC = () => {
 
           if (available) {
             setNearbyShop(available);
-            // Also fire a real system notification
-            if (shouldNotifyForShop(available.shop.id)) {
-              const notification = createShopNotification(available.shop, available.distance);
-              showLocalNotification(notification);
-            }
           }
         } else {
           setNearbyShop(null);

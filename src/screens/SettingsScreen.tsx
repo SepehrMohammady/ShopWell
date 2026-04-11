@@ -81,7 +81,7 @@ const SettingsScreen: React.FC = () => {
         );
         showAlert({
           title: 'Nearby Shop Detection Enabled',
-          message: `Will check proximity to ${shopsWithLocation.length} shop${shopsWithLocation.length !== 1 ? 's' : ''} while the app is open.`,
+          message: `Will show an in-app banner when you're near ${shopsWithLocation.length} shop${shopsWithLocation.length !== 1 ? 's' : ''} while the app is open.`,
         });
       } else if (locationStatus === 'never_ask_again') {
         showAlert({
@@ -303,7 +303,7 @@ const SettingsScreen: React.FC = () => {
                 Detect nearby shops
               </Text>
               <Text style={[styles.settingDescription, {color: colors.textSecondary}]}>
-                Show a banner when you're near a saved shop while the app is open
+                Show an in-app banner when you're near a saved shop
               </Text>
             </View>
             <Switch

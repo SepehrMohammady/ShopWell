@@ -38,8 +38,8 @@ export const getUnitPrice = (spb: ShopProductBrand): number => {
 };
 
 /**
- * Format unit price string (e.g. "€0.008/g", "€0.012/ml")
- * Normalizes to base unit (g or ml) for consistency
+ * Format unit price string (e.g. "€8.54/kg", "€0.015/ml")
+ * Shows per-kg for weight and per-L for volume for readability
  */
 export const formatUnitPrice = (spb: ShopProductBrand, currency: string = '€'): string | null => {
   if (!spb.quantity || spb.quantity <= 0 || !spb.unit) {
@@ -47,8 +47,11 @@ export const formatUnitPrice = (spb: ShopProductBrand, currency: string = '€')
   }
   const norm = normalizeToBaseUnit(spb.quantity, spb.unit);
   if (norm) {
-    const unitPrice = spb.price / norm.quantity;
-    return `${currency}${unitPrice.toFixed(3)}/${norm.baseUnit}`;
+    // Calculate price per base unit (g or ml), then convert to display unit (kg or L)
+    const pricePerBase = spb.price / norm.quantity;
+    const pricePerDisplay = pricePerBase * 1000; // per kg or per L
+    const displayUnit = norm.baseUnit === 'g' ? 'kg' : 'L';
+    return `${currency}${pricePerDisplay.toFixed(2)}/${displayUnit}`;
   }
   // For 'pcs' or unknown units, use raw unit
   const unitPrice = spb.price / spb.quantity;
@@ -70,17 +73,19 @@ const canCompareByUnit = (a: ShopProductBrand, b: ShopProductBrand): boolean => 
 };
 
 /**
- * Get normalized unit price (price per base unit: g or ml)
+ * Get normalized unit price (price per base unit: g, ml, or pcs)
  */
 const getNormalizedUnitPrice = (spb: ShopProductBrand): number | null => {
   if (!spb.quantity || spb.quantity <= 0 || !spb.unit) return null;
   const norm = normalizeToBaseUnit(spb.quantity, spb.unit);
-  if (!norm) return null;
-  return spb.price / norm.quantity;
+  if (norm) return spb.price / norm.quantity;
+  // For pcs, return price per piece
+  if (spb.unit === 'pcs') return spb.price / spb.quantity;
+  return null;
 };
 
 /**
- * Compare two SPBs - use normalized unit price if both have convertible units, otherwise absolute price
+ * Compare two SPBs - use unit price if both have same/convertible units, otherwise absolute price
  */
 const comparePrice = (a: ShopProductBrand, b: ShopProductBrand): number => {
   if (canCompareByUnit(a, b)) {
@@ -101,6 +106,14 @@ const getEffectivePrice = (spb: ShopProductBrand, allBrands: ShopProductBrand[])
   // Check if all brands with quantity info share convertible units
   const brandsWithUnit = allBrands.filter(b => b.quantity && b.quantity > 0 && b.unit);
   if (brandsWithUnit.length > 1) {
+    const firstUnit = brandsWithUnit[0].unit;
+    // Check if all share same unit (including pcs)
+    const allSameUnit = brandsWithUnit.every(b => b.unit === firstUnit);
+    if (allSameUnit && spb.quantity && spb.quantity > 0 && spb.unit) {
+      const normPrice = getNormalizedUnitPrice(spb);
+      if (normPrice !== null) return normPrice;
+    }
+    // Check if all are convertible weight/volume units
     const firstNorm = normalizeToBaseUnit(brandsWithUnit[0].quantity!, brandsWithUnit[0].unit!);
     const allConvertible = firstNorm && brandsWithUnit.every(b => {
       const norm = normalizeToBaseUnit(b.quantity!, b.unit!);
