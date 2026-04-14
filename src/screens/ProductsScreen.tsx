@@ -115,13 +115,25 @@ export const ProductsScreen: React.FC = () => {
       return;
     }
 
-    const lines = products.map((p, i) => `${i + 1}. ${p.name}`);
+    const lines = products.map((p, i) => {
+      const options = state.shopProductBrands.filter(spb => spb.productId === p.id);
+      let priceStr = '';
+      if (options.length > 0) {
+        const prices = options.map(o => o.price);
+        const min = Math.min(...prices);
+        const max = Math.max(...prices);
+        priceStr = min === max
+          ? ` — ${formatPrice(min, state.settings.currency)}`
+          : ` — ${formatPrice(min, state.settings.currency)}–${formatPrice(max, state.settings.currency)}`;
+      }
+      return `${i + 1}. ${p.name}${priceStr}`;
+    });
 
     const shopSuggestions = getBestShopsForShoppingList(products, state.shopProductBrands, state.shops);
     const shopLines = shopSuggestions.slice(0, 2).map(s =>
-      `🏪 ${s.shop.name} — ${s.productsAvailable} item${s.productsAvailable !== 1 ? 's' : ''}, ~${formatPrice(s.estimatedTotal, state.settings.currency)}`,
+      `  ${s.shop.name} — ${s.productsAvailable} item${s.productsAvailable !== 1 ? 's' : ''}, ~${formatPrice(s.estimatedTotal, state.settings.currency)}`,
     );
-    const shopSection = shopLines.length > 0 ? `\nSuggested shop${shopLines.length > 1 ? 's' : ''}:\n${shopLines.join('\n')}\n` : '';
+    const shopSection = shopLines.length > 0 ? `\n🏪 Suggested shop${shopLines.length > 1 ? 's' : ''}:\n${shopLines.join('\n')}\n` : '';
 
     const text = `🛒 Shopping List (${products.length} items)\n\n${lines.join('\n')}\n${shopSection}\n📱 Shared from ShopWell`;
 
