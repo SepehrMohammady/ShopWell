@@ -131,11 +131,11 @@ export const ProductsScreen: React.FC = () => {
 
     const shopSuggestions = getBestShopsForShoppingList(products, state.shopProductBrands, state.shops);
     const shopLines = shopSuggestions.slice(0, 2).map(s =>
-      `  ${s.shop.name} — ${s.productsAvailable} item${s.productsAvailable !== 1 ? 's' : ''}, ~${formatPrice(s.estimatedTotal, state.settings.currency)}`,
+      `${s.shop.name} — ${s.productsAvailable} item${s.productsAvailable !== 1 ? 's' : ''}, ~${formatPrice(s.estimatedTotal, state.settings.currency)}`,
     );
     const shopSection = shopLines.length > 0 ? `\n🏪 Suggested shop${shopLines.length > 1 ? 's' : ''}:\n${shopLines.join('\n')}\n` : '';
 
-    const text = `🛒 Shopping List (${products.length} items)\n\n${lines.join('\n')}\n${shopSection}\n📱 Shared from ShopWell`;
+    const text = `🛒 Shopping List (${products.length} items)\n${lines.join('\n')}\n${shopSection}\n📱 Shared from ShopWell`;
 
     setShowShareModal(false);
     try {
