@@ -3,5 +3,5 @@
  * Single source of truth for version info across the app
  */
 
-export const APP_VERSION = '0.0.24';
-export const VERSION_CODE = 21;
+export const APP_VERSION = '0.0.25';
+export const VERSION_CODE = 22;

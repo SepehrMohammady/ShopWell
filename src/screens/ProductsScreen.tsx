@@ -115,8 +115,15 @@ export const ProductsScreen: React.FC = () => {
       return;
     }
 
-    const lines = products.map((p, i) => `${i + 1}. ${p.name} (${ProductCategoryInfo[p.category]?.label || p.category})`);
-    const text = `🛒 Shopping List (${products.length} items)\n\n${lines.join('\n')}\n\nShared from ShopWell`;
+    const lines = products.map((p, i) => `${i + 1}. ${p.name}`);
+
+    const shopSuggestions = getBestShopsForShoppingList(products, state.shopProductBrands, state.shops);
+    const shopLines = shopSuggestions.slice(0, 2).map(s =>
+      `🏪 ${s.shop.name} — ${s.productsAvailable} item${s.productsAvailable !== 1 ? 's' : ''}, ~${formatPrice(s.estimatedTotal, state.settings.currency)}`,
+    );
+    const shopSection = shopLines.length > 0 ? `\nSuggested shop${shopLines.length > 1 ? 's' : ''}:\n${shopLines.join('\n')}\n` : '';
+
+    const text = `🛒 Shopping List (${products.length} items)\n\n${lines.join('\n')}\n${shopSection}\n📱 Shared from ShopWell`;
 
     setShowShareModal(false);
     try {
