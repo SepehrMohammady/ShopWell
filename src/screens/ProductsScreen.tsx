@@ -13,6 +13,8 @@ import {
   TouchableOpacity,
   TextInput,
   Image,
+  Share,
+  Modal,
 } from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
@@ -22,6 +24,7 @@ import {useTheme} from '../context/ThemeContext';
 import Card from '../components/common/Card';
 import FAB from '../components/common/FAB';
 import EmptyState from '../components/common/EmptyState';
+import {useAlert} from '../components/common';
 import {
   RootStackParamList,
   Product,
@@ -39,9 +42,12 @@ export const ProductsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const {state, toggleProductAvailability, getShoppingList} = useApp();
   const {colors} = useTheme();
+  const {showAlert} = useAlert();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'all'>('all');
   const [viewMode, setViewMode] = useState<ViewMode>('shopping');
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareProductIds, setShareProductIds] = useState<string[]>([]);
 
   const categories: Array<ProductCategory | 'all'> = [
     'all',
@@ -90,6 +96,38 @@ export const ProductsScreen: React.FC = () => {
         .map(spb => spb.shopId)
     ).size;
     return {cheapest, brandCount, shopCount};
+  };
+
+  const handleOpenShare = () => {
+    // Default: shopping list items (not available)
+    const shoppingIds = state.products.filter(p => !p.isAvailable).map(p => p.id);
+    setShareProductIds(shoppingIds);
+    setShowShareModal(true);
+  };
+
+  const handleShareList = async () => {
+    const products = shareProductIds
+      .map(id => state.products.find(p => p.id === id))
+      .filter((p): p is Product => !!p);
+
+    if (products.length === 0) {
+      showAlert({title: 'Nothing to share', message: 'Select at least one product to share.'});
+      return;
+    }
+
+    const lines = products.map((p, i) => `${i + 1}. ${p.name} (${ProductCategoryInfo[p.category]?.label || p.category})`);
+    const text = `🛒 Shopping List (${products.length} items)\n\n${lines.join('\n')}\n\nShared from ShopWell`;
+
+    setShowShareModal(false);
+    try {
+      await Share.share({message: text});
+    } catch {}
+  };
+
+  const toggleShareProduct = (id: string) => {
+    setShareProductIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id],
+    );
   };
 
   const renderViewModeToggle = () => (
@@ -306,8 +344,18 @@ export const ProductsScreen: React.FC = () => {
       {/* View Mode Toggle */}
       {renderViewModeToggle()}
 
-      {/* Best Shop Banner (only in shopping mode) */}
-      {renderBestShopBanner()}
+      {/* Best Shop Banner + Share Button (only in shopping mode) */}
+      {viewMode === 'shopping' && (
+        <View style={styles.shoppingActions}>
+          {renderBestShopBanner()}
+          <TouchableOpacity
+            style={[styles.shareButton, {backgroundColor: colors.primary + '15'}]}
+            onPress={handleOpenShare}>
+            <MaterialCommunityIcons name="share-variant" size={18} color={colors.primary} />
+            <Text style={[styles.shareButtonText, {color: colors.primary}]}>Share List</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Search Bar */}
       <View style={[styles.searchContainer, {backgroundColor: colors.surface}]}>
@@ -355,6 +403,64 @@ export const ProductsScreen: React.FC = () => {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* Share Modal */}
+      <Modal visible={showShareModal} transparent animationType="slide">
+        <View style={[styles.modalOverlay]}>
+          <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, {color: colors.text}]}>Share Shopping List</Text>
+              <TouchableOpacity onPress={() => setShowShareModal(false)}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.modalSubtitle, {color: colors.textSecondary}]}>
+              Select products to include ({shareProductIds.length} selected)
+            </Text>
+            <FlatList
+              data={state.products}
+              keyExtractor={item => item.id}
+              style={styles.shareList}
+              renderItem={({item}) => (
+                <TouchableOpacity
+                  style={[styles.shareItem, {borderBottomColor: colors.border}]}
+                  onPress={() => toggleShareProduct(item.id)}>
+                  <MaterialCommunityIcons
+                    name={shareProductIds.includes(item.id) ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                    size={22}
+                    color={shareProductIds.includes(item.id) ? colors.primary : colors.textLight}
+                  />
+                  <Text style={[styles.shareItemText, {color: colors.text}]}>{item.name}</Text>
+                  <Text style={[styles.shareItemCategory, {color: colors.textSecondary}]}>
+                    {ProductCategoryInfo[item.category]?.label || item.category}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            />
+            <View style={styles.shareActions}>
+              <TouchableOpacity
+                style={[styles.shareSelectAll, {borderColor: colors.border}]}
+                onPress={() => {
+                  if (shareProductIds.length === state.products.length) {
+                    setShareProductIds([]);
+                  } else {
+                    setShareProductIds(state.products.map(p => p.id));
+                  }
+                }}>
+                <Text style={[styles.shareSelectAllText, {color: colors.textSecondary}]}>
+                  {shareProductIds.length === state.products.length ? 'Deselect All' : 'Select All'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.shareConfirmButton, {backgroundColor: colors.primary}]}
+                onPress={handleShareList}>
+                <MaterialCommunityIcons name="share-variant" size={18} color={colors.white} />
+                <Text style={[styles.shareConfirmText, {color: colors.white}]}>Share</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       <FAB onPress={() => navigation.navigate('AddEditProduct', {})} />
     </View>
@@ -531,5 +637,95 @@ const styles = StyleSheet.create({
   noPrices: {
     fontSize: 12,
     fontStyle: 'italic',
+  },
+  shoppingActions: {
+    paddingTop: Spacing.sm,
+    gap: Spacing.sm,
+  },
+  shareButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    marginHorizontal: Spacing.base,
+    borderRadius: 10,
+    gap: 6,
+  },
+  shareButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '80%',
+    padding: Spacing.base,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xs,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalSubtitle: {
+    fontSize: 13,
+    marginBottom: Spacing.base,
+  },
+  shareList: {
+    maxHeight: 400,
+  },
+  shareItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 0.5,
+    gap: Spacing.sm,
+  },
+  shareItemText: {
+    flex: 1,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  shareItemCategory: {
+    fontSize: 12,
+  },
+  shareActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Spacing.base,
+    gap: Spacing.base,
+  },
+  shareSelectAll: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.base,
+    borderWidth: 1,
+    borderRadius: 10,
+  },
+  shareSelectAllText: {
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  shareConfirmButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
+  },
+  shareConfirmText: {
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

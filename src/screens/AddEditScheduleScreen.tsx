@@ -1,6 +1,6 @@
 /**
  * Add/Edit Schedule Screen
- * Redesigned: native time picker, product assignment
+ * Redesigned: custom app-themed pickers, product assignment
  */
 
 import React, {useState, useEffect, useMemo} from 'react';
@@ -13,8 +13,10 @@ import {
   Platform,
   Image,
   TextInput,
+  Modal,
+  FlatList,
+  Animated,
 } from 'react-native';
-import DateTimePicker, {DateTimePickerEvent} from '@react-native-community/datetimepicker';
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import {RootStackParamList, Schedule, ProductCategoryInfo, ProductCategory} from '../types';
@@ -22,6 +24,8 @@ import {useApp} from '../context/AppContext';
 import {scheduleReminderNotification, cancelScheduleNotification} from '../services/NotificationService';
 import {useTheme} from '../context/ThemeContext';
 import {Button, Input, Card, useAlert} from '../components/common';
+import {DatePickerModal} from '../components/common/DatePickerModal';
+import {TimePickerModal} from '../components/common/TimePickerModal';
 import {Spacing, FontSize} from '../constants';
 import {generateId, getCurrentTimestamp, formatDate} from '../utils';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -90,22 +94,19 @@ const AddEditScheduleScreen: React.FC = () => {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
+  const [showShopPicker, setShowShopPicker] = useState(false);
 
   const toggleGroup = (key: string) =>
     setExpandedGroups(prev => ({...prev, [key]: !prev[key]}));
 
-  const handleDateChange = (event: DateTimePickerEvent, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios');
-    if (selectedDate) {
-      setDate(selectedDate.toISOString());
-    }
+  const handleDateChange = (selectedDate: Date) => {
+    setShowDatePicker(false);
+    setDate(selectedDate.toISOString());
   };
 
-  const handleTimeChange = (event: DateTimePickerEvent, selectedTime?: Date) => {
-    setShowTimePicker(Platform.OS === 'ios');
-    if (selectedTime) {
-      setTimeDate(selectedTime);
-    }
+  const handleTimeChange = (selectedTime: Date) => {
+    setShowTimePicker(false);
+    setTimeDate(selectedTime);
   };
 
   const formatTime = (d: Date): string => {
@@ -271,15 +272,13 @@ const AddEditScheduleScreen: React.FC = () => {
             </View>
           </Card>
         </TouchableOpacity>
-        {showDatePicker && (
-          <DateTimePicker
-            value={new Date(date)}
-            mode="date"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleDateChange}
-            minimumDate={new Date()}
-          />
-        )}
+        <DatePickerModal
+          visible={showDatePicker}
+          value={new Date(date)}
+          minimumDate={new Date()}
+          onConfirm={handleDateChange}
+          onCancel={() => setShowDatePicker(false)}
+        />
 
         <Text style={[styles.label, {color: colors.text}]}>Time</Text>
         <TouchableOpacity
@@ -310,14 +309,12 @@ const AddEditScheduleScreen: React.FC = () => {
             </View>
           </Card>
         </TouchableOpacity>
-        {showTimePicker && (
-          <DateTimePicker
-            value={timeDate}
-            mode="time"
-            display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-            onChange={handleTimeChange}
-          />
-        )}
+        <TimePickerModal
+          visible={showTimePicker}
+          value={timeDate}
+          onConfirm={handleTimeChange}
+          onCancel={() => setShowTimePicker(false)}
+        />
 
         <Text style={[styles.label, {color: colors.text}]}>Repeat</Text>
         <View style={styles.optionRow}>
@@ -374,32 +371,65 @@ const AddEditScheduleScreen: React.FC = () => {
         {state.shops.length > 0 && (
           <>
             <Text style={[styles.label, {color: colors.text}]}>Assign to Shop (optional)</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={styles.horizontalScroll}>
-              <TouchableOpacity
-                style={[
-                  styles.selectItem,
-                  {backgroundColor: colors.surface, borderColor: colors.border},
-                  !selectedShopId && {backgroundColor: colors.primary, borderColor: colors.primary},
-                ]}
-                onPress={() => setSelectedShopId('')}>
-                <Text style={[styles.selectItemText, {color: !selectedShopId ? colors.textInverse : colors.text}]}>None</Text>
-              </TouchableOpacity>
-              {state.shops.map(shop => (
+            <TouchableOpacity
+              style={[styles.shopDropdown, {backgroundColor: colors.surface, borderColor: selectedShopId ? colors.primary : colors.border}]}
+              onPress={() => setShowShopPicker(true)}>
+              <MaterialCommunityIcons name="store" size={18} color={selectedShopId ? colors.primary : colors.textSecondary} />
+              <Text style={[styles.shopDropdownText, {color: selectedShopId ? colors.text : colors.textSecondary}]}>
+                {selectedShopId ? state.shops.find(s => s.id === selectedShopId)?.name || 'Select Shop' : 'No shop assigned'}
+              </Text>
+              {selectedShopId ? (
                 <TouchableOpacity
-                  key={shop.id}
-                  style={[
-                    styles.selectItem,
-                    {backgroundColor: colors.surface, borderColor: colors.border},
-                    selectedShopId === shop.id && {backgroundColor: colors.primary, borderColor: colors.primary},
-                  ]}
-                  onPress={() => setSelectedShopId(shop.id)}>
-                  <Text style={[styles.selectItemText, {color: selectedShopId === shop.id ? colors.textInverse : colors.text}]}>{shop.name}</Text>
+                  onPress={() => setSelectedShopId('')}
+                  hitSlop={{top: 10, bottom: 10, left: 10, right: 10}}>
+                  <MaterialCommunityIcons name="close-circle" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              ) : (
+                <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textSecondary} />
+              )}
+            </TouchableOpacity>
+            <Modal
+              visible={showShopPicker}
+              transparent
+              animationType="slide"
+              onRequestClose={() => setShowShopPicker(false)}>
+              <View style={styles.modalOverlay}>
+                <View style={[styles.modalContent, {backgroundColor: colors.surface}]}>
+                  <View style={styles.modalHeader}>
+                    <Text style={[styles.modalTitle, {color: colors.text}]}>Select Shop</Text>
+                    <TouchableOpacity onPress={() => setShowShopPicker(false)}>
+                      <MaterialCommunityIcons name="close" size={24} color={colors.text} />
+                    </TouchableOpacity>
+                  </View>
+                  <FlatList
+                    data={[{id: '', name: 'None', isFavorite: false}, ...state.shops]}
+                    keyExtractor={s => s.id || '_none'}
+                    renderItem={({item: s}) => {
+                      const isSelected = selectedShopId === s.id;
+                      return (
+                        <TouchableOpacity
+                          style={[styles.modalItem, isSelected && {backgroundColor: colors.primary + '15'}]}
+                          onPress={() => {
+                            setSelectedShopId(s.id);
+                            setShowShopPicker(false);
+                          }}>
+                          <MaterialCommunityIcons
+                            name={s.id ? 'store' : 'close-circle-outline'}
+                            size={20}
+                            color={isSelected ? colors.primary : colors.textSecondary}
+                          />
+                          <Text style={[styles.modalItemText, {color: isSelected ? colors.primary : colors.text}, isSelected && {fontWeight: '600'}]}>
+                            {s.name}
+                          </Text>
+                          {s.isFavorite && <MaterialCommunityIcons name="star" size={14} color="#FFD700" />}
+                          {isSelected && <MaterialCommunityIcons name="check" size={20} color={colors.primary} />}
+                        </TouchableOpacity>
+                      );
+                    }}
+                  />
+                </View>
+              </View>
+            </Modal>
           </>
         )}
 
@@ -593,6 +623,52 @@ const styles = StyleSheet.create({
   },
   selectItemText: {
     fontSize: FontSize.sm,
+  },
+  shopDropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.base,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: Spacing.md,
+    gap: Spacing.sm,
+  },
+  shopDropdownText: {
+    flex: 1,
+    fontSize: FontSize.base,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '60%',
+    paddingBottom: Spacing.xl,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: Spacing.base,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  modalTitle: {
+    fontSize: FontSize.lg,
+    fontWeight: '600',
+  },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: Spacing.base,
+    gap: Spacing.sm,
+  },
+  modalItemText: {
+    flex: 1,
+    fontSize: FontSize.base,
   },
   optionRow: {
     flexDirection: 'row',

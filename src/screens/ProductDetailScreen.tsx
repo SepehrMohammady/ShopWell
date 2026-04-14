@@ -104,33 +104,23 @@ export const ProductDetailScreen: React.FC = () => {
               {categoryInfo.label}
             </Text>
           </View>
-        </View>
 
-        {/* Availability Toggle */}
-        <TouchableOpacity
-          style={[
-            styles.availabilityBadge,
-            {
-              backgroundColor: product.isAvailable
-                ? colors.success + '20'
-                : colors.primary + '20',
-            },
-          ]}
-          onPress={handleToggleAvailability}>
-          <MaterialCommunityIcons
-            name={product.isAvailable ? 'check' : 'cart-outline'}
-            size={18}
-            color={product.isAvailable ? colors.success : colors.primary}
-            style={{marginRight: Spacing.sm}}
-          />
-          <Text
+          {/* Availability Circle Toggle */}
+          <TouchableOpacity
+            onPress={handleToggleAvailability}
             style={[
-              styles.availabilityText,
-              {color: product.isAvailable ? colors.success : colors.primary},
-            ]}>
-            {product.isAvailable ? 'Available - tap to add to shopping list' : 'On shopping list - tap when purchased'}
-          </Text>
-        </TouchableOpacity>
+              styles.availabilityCircle,
+              {
+                borderColor: product.isAvailable ? colors.success : colors.border,
+                backgroundColor: product.isAvailable ? colors.success : 'transparent',
+              },
+            ]}
+            hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+            {product.isAvailable && (
+              <MaterialCommunityIcons name="check" size={16} color="#FFFFFF" />
+            )}
+          </TouchableOpacity>
+        </View>
 
         {product.notes && (
           <View style={[styles.notesSection, {borderTopColor: colors.border}]}>
@@ -352,17 +342,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  availabilityBadge: {
-    flexDirection: 'row',
+  availabilityCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: Spacing.base,
-    borderRadius: 12,
-    marginTop: Spacing.base,
-  },
-  availabilityText: {
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
+    marginLeft: Spacing.sm,
   },
   notesSection: {
     marginTop: Spacing.base,

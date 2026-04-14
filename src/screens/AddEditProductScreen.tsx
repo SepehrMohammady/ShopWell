@@ -135,9 +135,18 @@ export const AddEditProductScreen: React.FC = () => {
       });
       return;
     }
+    // Add a new entry; reuse the last used shop or default to first shop
+    const lastShopId = brandPrices.length > 0 ? brandPrices[brandPrices.length - 1].shopId : sortedShops[0].id;
     setBrandPrices([
       ...brandPrices,
-      {id: generateId(), shopId: sortedShops[0].id, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType, url: ''},
+      {id: generateId(), shopId: lastShopId, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType, url: ''},
+    ]);
+  };
+
+  const handleAddBrandToShop = (shopId: string) => {
+    setBrandPrices([
+      ...brandPrices,
+      {id: generateId(), shopId, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType, url: ''},
     ]);
   };
 
@@ -293,112 +302,140 @@ export const AddEditProductScreen: React.FC = () => {
     const shop = state.shops.find(s => s.id === entry.shopId);
 
     return (
-      <Card key={entry.id}>
-        <View style={styles.brandPriceEntry}>
-          <View style={styles.brandPriceHeader}>
-            <Text style={[styles.brandPriceTitle, {color: colors.text}]}>
-              Option {index + 1}
-            </Text>
-            <TouchableOpacity
-              onPress={() => handleRemoveBrandPrice(entry.id)}
-              style={styles.removeButton}>
-              <View style={styles.removeButtonContent}>
-                <MaterialCommunityIcons name="close" size={14} color={colors.error} />
-                <Text style={[styles.removeButtonText, {color: colors.error}]}>
-                  Remove
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </View>
-
-          {/* Shop selector - dropdown */}
-          <Text style={[styles.fieldLabel, {color: colors.textSecondary}]}>
-            Shop
+      <View key={entry.id} style={styles.brandEntryInShop}>
+        <View style={styles.brandPriceHeader}>
+          <Text style={[styles.brandPriceTitle, {color: colors.text}]}>
+            Brand {index + 1}
           </Text>
           <TouchableOpacity
+            onPress={() => handleRemoveBrandPrice(entry.id)}
+            style={styles.removeButton}>
+            <View style={styles.removeButtonContent}>
+              <MaterialCommunityIcons name="close" size={14} color={colors.error} />
+              <Text style={[styles.removeButtonText, {color: colors.error}]}>
+                Remove
+              </Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        {/* Brand and Price in row */}
+        <View style={styles.brandPriceRow}>
+          <View style={styles.brandInput}>
+            <Input
+              label="Brand"
+              value={entry.brand}
+              onChangeText={v => handleUpdateBrandPrice(entry.id, 'brand', v)}
+              placeholder="e.g., Alpro, Oatly..."
+            />
+          </View>
+          <View style={styles.priceInput}>
+            <Input
+              label={`Price (${state.settings.currency})`}
+              value={entry.price}
+              onChangeText={v => handleUpdateBrandPrice(entry.id, 'price', v)}
+              placeholder="0.00"
+              keyboardType="decimal-pad"
+            />
+          </View>
+        </View>
+
+        {/* Quantity and Unit for unit price comparison */}
+        <Text style={[styles.fieldLabel, {color: colors.textSecondary, marginTop: Spacing.xs}]}>
+          Quantity (optional - for unit price comparison)
+        </Text>
+        <View style={styles.brandPriceRow}>
+          <View style={styles.quantityInput}>
+            <Input
+              label="Quantity"
+              value={entry.quantity}
+              onChangeText={v => handleUpdateBrandPrice(entry.id, 'quantity', v)}
+              placeholder="e.g., 12"
+              keyboardType="decimal-pad"
+            />
+          </View>
+          <View style={styles.unitSelector}>
+            <Text style={[styles.fieldLabel, {color: colors.textSecondary}]}>Unit</Text>
+            <View style={styles.unitChips}>
+              {(['pcs', 'g', 'kg', 'ml', 'L', 'cm', 'm'] as UnitType[]).map(u => {
+                const isSelected = entry.unit === u;
+                return (
+                  <TouchableOpacity
+                    key={u}
+                    style={[
+                      styles.unitChip,
+                      {
+                        backgroundColor: isSelected ? colors.primary : colors.surface,
+                        borderColor: isSelected ? colors.primary : colors.border,
+                      },
+                    ]}
+                    onPress={() => handleUpdateBrandPrice(entry.id, 'unit', u)}>
+                    <Text style={[styles.unitChipText, {color: isSelected ? colors.white : colors.text}]}>
+                      {u}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+
+        {/* Product link - shown for online shops */}
+        {shop?.isOnline && (
+          <View style={{marginTop: Spacing.xs}}>
+            <Input
+              label="Product Link (optional)"
+              value={entry.url}
+              onChangeText={v => handleUpdateBrandPrice(entry.id, 'url', v)}
+              placeholder="https://..."
+              keyboardType="url"
+            />
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  // Group brand prices by shop for rendering
+  const groupedByShop = useMemo(() => {
+    const groups: {shopId: string; entries: BrandPriceEntry[]}[] = [];
+    const shopOrder: string[] = [];
+    brandPrices.forEach(bp => {
+      if (!shopOrder.includes(bp.shopId)) shopOrder.push(bp.shopId);
+    });
+    shopOrder.forEach(shopId => {
+      groups.push({shopId, entries: brandPrices.filter(bp => bp.shopId === shopId)});
+    });
+    return groups;
+  }, [brandPrices]);
+
+  const renderShopGroup = (group: {shopId: string; entries: BrandPriceEntry[]}) => {
+    const shop = state.shops.find(s => s.id === group.shopId);
+    return (
+      <Card key={group.shopId}>
+        {/* Shop header with change option */}
+        <View style={styles.shopGroupHeader}>
+          <TouchableOpacity
             style={[styles.shopDropdown, {backgroundColor: colors.surface, borderColor: colors.border}]}
-            onPress={() => setActivePickerEntryId(entry.id)}>
+            onPress={() => setActivePickerEntryId(group.shopId)}>
             <MaterialCommunityIcons name="store" size={18} color={colors.primary} />
             <Text style={[styles.shopDropdownText, {color: colors.text}]}>
               {shop?.name || 'Select Shop'}
             </Text>
             <MaterialCommunityIcons name="chevron-down" size={20} color={colors.textSecondary} />
           </TouchableOpacity>
-
-          {/* Brand and Price in row */}
-          <View style={styles.brandPriceRow}>
-            <View style={styles.brandInput}>
-              <Input
-                label="Brand"
-                value={entry.brand}
-                onChangeText={v => handleUpdateBrandPrice(entry.id, 'brand', v)}
-                placeholder="e.g., Alpro, Oatly..."
-              />
-            </View>
-            <View style={styles.priceInput}>
-              <Input
-                label={`Price (${state.settings.currency})`}
-                value={entry.price}
-                onChangeText={v => handleUpdateBrandPrice(entry.id, 'price', v)}
-                placeholder="0.00"
-                keyboardType="decimal-pad"
-              />
-            </View>
-          </View>
-
-          {/* Quantity and Unit for unit price comparison */}
-          <Text style={[styles.fieldLabel, {color: colors.textSecondary, marginTop: Spacing.xs}]}>
-            Quantity (optional - for unit price comparison)
-          </Text>
-          <View style={styles.brandPriceRow}>
-            <View style={styles.quantityInput}>
-              <Input
-                label="Quantity"
-                value={entry.quantity}
-                onChangeText={v => handleUpdateBrandPrice(entry.id, 'quantity', v)}
-                placeholder="e.g., 12"
-                keyboardType="decimal-pad"
-              />
-            </View>
-            <View style={styles.unitSelector}>
-              <Text style={[styles.fieldLabel, {color: colors.textSecondary}]}>Unit</Text>
-              <View style={styles.unitChips}>
-                {(['pcs', 'g', 'kg', 'ml', 'L'] as UnitType[]).map(u => {
-                  const isSelected = entry.unit === u;
-                  return (
-                    <TouchableOpacity
-                      key={u}
-                      style={[
-                        styles.unitChip,
-                        {
-                          backgroundColor: isSelected ? colors.primary : colors.surface,
-                          borderColor: isSelected ? colors.primary : colors.border,
-                        },
-                      ]}
-                      onPress={() => handleUpdateBrandPrice(entry.id, 'unit', u)}>
-                      <Text style={[styles.unitChipText, {color: isSelected ? colors.white : colors.text}]}>
-                        {u}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-          </View>
-
-          {/* Product link - shown for online shops */}
-          {shop?.isOnline && (
-            <View style={{marginTop: Spacing.xs}}>
-              <Input
-                label="Product Link (optional)"
-                value={entry.url}
-                onChangeText={v => handleUpdateBrandPrice(entry.id, 'url', v)}
-                placeholder="https://..."
-                keyboardType="url"
-              />
-            </View>
-          )}
         </View>
+
+        {/* Brands in this shop */}
+        {group.entries.map((entry, i) => renderBrandPriceEntry(entry, i))}
+
+        {/* Add another brand to this shop */}
+        <TouchableOpacity
+          style={[styles.addBrandInShopButton, {borderColor: colors.primary + '60'}]}
+          onPress={() => handleAddBrandToShop(group.shopId)}>
+          <MaterialCommunityIcons name="plus" size={16} color={colors.primary} />
+          <Text style={[styles.addBrandInShopText, {color: colors.primary}]}>Add Brand</Text>
+        </TouchableOpacity>
       </Card>
     );
   };
@@ -539,13 +576,13 @@ export const AddEditProductScreen: React.FC = () => {
         Add different brands and their prices at various shops
       </Text>
 
-      {brandPrices.map((entry, index) => renderBrandPriceEntry(entry, index))}
+      {groupedByShop.map(group => renderShopGroup(group))}
 
       <TouchableOpacity
         style={[styles.addBrandButton, {borderColor: colors.primary}]}
         onPress={handleAddBrandPrice}>
         <Text style={[styles.addBrandButtonText, {color: colors.primary}]}>
-          + Add Brand/Price
+          + Add Shop/Price
         </Text>
       </TouchableOpacity>
 
@@ -603,7 +640,7 @@ export const AddEditProductScreen: React.FC = () => {
         )}
       </View>
 
-      {/* Shop Picker Modal */}
+      {/* Shop Picker Modal - activePickerEntryId is now the old shopId of the group */}
       <Modal
         visible={activePickerEntryId !== null}
         transparent
@@ -632,13 +669,18 @@ export const AddEditProductScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
               renderItem={({item: s}) => {
-                const isSelected = activePickerEntryId ? brandPrices.find(bp => bp.id === activePickerEntryId)?.shopId === s.id : false;
+                const isSelected = activePickerEntryId === s.id;
                 return (
                   <TouchableOpacity
                     style={[styles.modalItem, isSelected && {backgroundColor: colors.primary + '15'}]}
                     onPress={() => {
                       if (activePickerEntryId) {
-                        handleUpdateBrandPrice(activePickerEntryId, 'shopId', s.id);
+                        // Update all entries from the old shopId to the new one
+                        setBrandPrices(prev =>
+                          prev.map(bp =>
+                            bp.shopId === activePickerEntryId ? {...bp, shopId: s.id} : bp,
+                          ),
+                        );
                       }
                       setActivePickerEntryId(null);
                     }}>
@@ -756,6 +798,30 @@ const styles = StyleSheet.create({
   },
   brandPriceEntry: {
     marginBottom: Spacing.sm,
+  },
+  brandEntryInShop: {
+    marginBottom: Spacing.sm,
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+  },
+  shopGroupHeader: {
+    marginBottom: Spacing.xs,
+  },
+  addBrandInShopButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+    marginTop: Spacing.xs,
+    gap: 4,
+  },
+  addBrandInShopText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
   brandPriceHeader: {
     flexDirection: 'row',

@@ -24,7 +24,7 @@ export interface Product {
 }
 
 // Unit types for quantity measurement
-export type UnitType = 'pcs' | 'g' | 'kg' | 'ml' | 'L';
+export type UnitType = 'pcs' | 'g' | 'kg' | 'ml' | 'L' | 'cm' | 'm';
 
 export const UnitLabels: Record<UnitType, string> = {
   pcs: 'pieces',
@@ -32,6 +32,8 @@ export const UnitLabels: Record<UnitType, string> = {
   kg: 'kilograms',
   ml: 'milliliters',
   L: 'liters',
+  cm: 'centimeters',
+  m: 'meters',
 };
 
 // Shop-Product-Brand relationship with price

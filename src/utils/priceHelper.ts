@@ -9,12 +9,14 @@ import {PriceComparison, ShopProductBrand, Shop, Product, UnitLabels, UnitType} 
  * Normalize quantity to a base unit (g for weight, ml for volume)
  * Returns null if unit is not a weight/volume type
  */
-const normalizeToBaseUnit = (quantity: number, unit: UnitType): {quantity: number; baseUnit: 'g' | 'ml'} | null => {
+const normalizeToBaseUnit = (quantity: number, unit: UnitType): {quantity: number; baseUnit: 'g' | 'ml' | 'cm'} | null => {
   switch (unit) {
     case 'g': return {quantity, baseUnit: 'g'};
     case 'kg': return {quantity: quantity * 1000, baseUnit: 'g'};
     case 'ml': return {quantity, baseUnit: 'ml'};
     case 'L': return {quantity: quantity * 1000, baseUnit: 'ml'};
+    case 'cm': return {quantity, baseUnit: 'cm'};
+    case 'm': return {quantity: quantity * 100, baseUnit: 'cm'};
     default: return null;
   }
 };
@@ -47,8 +49,12 @@ export const formatUnitPrice = (spb: ShopProductBrand, currency: string = '€')
   }
   const norm = normalizeToBaseUnit(spb.quantity, spb.unit);
   if (norm) {
-    // Calculate price per base unit (g or ml), then convert to display unit (kg or L)
+    // Calculate price per base unit, then convert to display unit
     const pricePerBase = spb.price / norm.quantity;
+    if (norm.baseUnit === 'cm') {
+      const pricePerDisplay = pricePerBase * 100; // per m
+      return `${currency}${pricePerDisplay.toFixed(2)}/m`;
+    }
     const pricePerDisplay = pricePerBase * 1000; // per kg or per L
     const displayUnit = norm.baseUnit === 'g' ? 'kg' : 'L';
     return `${currency}${pricePerDisplay.toFixed(2)}/${displayUnit}`;
