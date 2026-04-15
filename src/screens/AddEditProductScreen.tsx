@@ -135,12 +135,8 @@ export const AddEditProductScreen: React.FC = () => {
       });
       return;
     }
-    // Add a new entry; reuse the last used shop or default to first shop
-    const lastShopId = brandPrices.length > 0 ? brandPrices[brandPrices.length - 1].shopId : sortedShops[0].id;
-    setBrandPrices([
-      ...brandPrices,
-      {id: generateId(), shopId: lastShopId, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType, url: ''},
-    ]);
+    // Open shop picker in 'new group' mode
+    setActivePickerEntryId('__new__');
   };
 
   const handleAddBrandToShop = (shopId: string) => {
@@ -669,12 +665,18 @@ export const AddEditProductScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
               renderItem={({item: s}) => {
-                const isSelected = activePickerEntryId === s.id;
+                const isSelected = activePickerEntryId !== '__new__' && activePickerEntryId === s.id;
                 return (
                   <TouchableOpacity
                     style={[styles.modalItem, isSelected && {backgroundColor: colors.primary + '15'}]}
                     onPress={() => {
-                      if (activePickerEntryId) {
+                      if (activePickerEntryId === '__new__') {
+                        // Add a new brand entry for the selected shop
+                        setBrandPrices(prev => [
+                          ...prev,
+                          {id: generateId(), shopId: s.id, brand: '', price: '', quantity: '', unit: 'pcs' as UnitType, url: ''},
+                        ]);
+                      } else if (activePickerEntryId) {
                         // Update all entries from the old shopId to the new one
                         setBrandPrices(prev =>
                           prev.map(bp =>
