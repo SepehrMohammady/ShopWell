@@ -7,7 +7,7 @@ import {View, StyleSheet, ScrollView, Text, TouchableOpacity} from 'react-native
 import {useNavigation, useRoute, RouteProp} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {RootStackParamList, ShopCategoryInfo} from '../types';
+import {RootStackParamList, ShopCategoryInfo, getShopCategories} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, Button, useAlert} from '../components/common';
@@ -98,7 +98,9 @@ const ShopDetailScreen: React.FC = () => {
     });
   };
 
-  const categoryColor = CategoryColors[shop.category] || colors.other;
+  const cats = getShopCategories(shop);
+  const primary = cats[0];
+  const categoryColor = CategoryColors[primary] || colors.other;
 
   return (
     <View style={[styles.container, {backgroundColor: colors.background}]}>
@@ -110,13 +112,22 @@ const ShopDetailScreen: React.FC = () => {
           <View style={styles.shopHeader}>
             <View
               style={[styles.categoryBadge, {backgroundColor: categoryColor}]}>
-              <MaterialCommunityIcons name={ShopCategoryInfo[shop.category]?.icon || 'store'} size={28} color="#FFFFFF" />
+              <MaterialCommunityIcons name={ShopCategoryInfo[primary]?.icon || 'store'} size={28} color="#FFFFFF" />
             </View>
             <View style={styles.shopInfo}>
               <Text style={[styles.shopName, {color: colors.text}]}>{shop.name}</Text>
-              <Text style={[styles.categoryLabel, {color: colors.textSecondary}]}>
-                {ShopCategoryInfo[shop.category]?.label || 'Other'}
-              </Text>
+              <View style={styles.categoryChipsRow}>
+                {cats.map(cat => {
+                  const info = ShopCategoryInfo[cat] || ShopCategoryInfo.other;
+                  const chipColor = CategoryColors[cat] || colors.other;
+                  return (
+                    <View key={cat} style={[styles.categoryChip, {backgroundColor: chipColor + '18'}]}>
+                      <MaterialCommunityIcons name={info.icon} size={12} color={chipColor} />
+                      <Text style={[styles.categoryChipText, {color: chipColor}]}>{info.label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
             </View>
             <TouchableOpacity
               onPress={handleToggleFavorite}
@@ -312,6 +323,24 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: FontSize.sm,
     marginTop: 2,
+  },
+  categoryChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 7,
+    gap: 3,
+  },
+  categoryChipText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   favoriteButton: {
     padding: Spacing.sm,

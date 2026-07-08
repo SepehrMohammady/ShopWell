@@ -105,7 +105,8 @@ export interface Shop {
   id: string;
   name: string;
   address?: string; // Primary address (backward compat)
-  category: ShopCategory;
+  category: ShopCategory; // Primary category (backward compat / primary badge)
+  categories?: ShopCategory[]; // All categories for this shop (multi-select)
   notes?: string;
   isFavorite: boolean;
   isOnline?: boolean;
@@ -199,6 +200,21 @@ export const ShopCategoryInfo: Record<ShopCategory, {label: string; icon: string
   department: {label: 'Department & Discount', icon: 'storefront', color: '#5C6BC0'},
   thrift: {label: 'Thrift & Secondhand', icon: 'recycle', color: '#9E9D24'},
   other: {label: 'Other', icon: 'store', color: '#90A4AE'},
+};
+
+// Resolve a shop's categories, supporting both the new multi-category `categories`
+// field and the legacy single `category`. Filters to known ids; defaults to ['other'].
+export const getShopCategories = (
+  shop: {category?: ShopCategory; categories?: ShopCategory[]},
+): ShopCategory[] => {
+  const raw =
+    shop.categories && shop.categories.length
+      ? shop.categories
+      : shop.category
+      ? [shop.category]
+      : [];
+  const valid = raw.filter(c => !!c && c in ShopCategoryInfo);
+  return valid.length ? valid : ['other'];
 };
 
 // Product category display info

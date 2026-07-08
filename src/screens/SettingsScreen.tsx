@@ -28,15 +28,15 @@ const SettingsScreen: React.FC = () => {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      const shared = await exportAndShare(state);
-      if (shared) {
+      const ok = await exportAndShare(state);
+      if (ok) {
         showAlert({
           title: 'Backup Successful',
-          message: `Your backup was created successfully with ${state.products.length} products, ${state.shops.length} shops, ${state.schedules.length} schedules, and ${state.shopProductBrands.length} price entries.`,
+          message: `Your backup was created successfully with ${state.products.length} products, ${state.shops.length} shops, ${state.schedules.length} schedules, and ${state.shopProductBrands.length} price entries. Save the .shopwell file somewhere safe so you can restore it later.`,
         });
       }
     } catch (error: any) {
-      showAlert({title: 'Export Failed', message: error?.message || 'Could not export data.'});
+      showAlert({title: 'Backup Failed', message: error?.message || 'Could not create backup.'});
     }
     setIsExporting(false);
   };

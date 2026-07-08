@@ -7,7 +7,7 @@ import {View, FlatList, StyleSheet, Text} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import {RootStackParamList, Shop, ShopCategoryInfo} from '../types';
+import {RootStackParamList, Shop, ShopCategoryInfo, getShopCategories} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, FAB} from '../components/common';
@@ -29,8 +29,10 @@ const ShopsScreen: React.FC = () => {
   };
 
   const renderShopItem = ({item}: {item: Shop}) => {
-    const categoryColor = CategoryColors[item.category] || colors.other;
-    const catInfo = ShopCategoryInfo[item.category] || ShopCategoryInfo.other;
+    const cats = getShopCategories(item);
+    const primary = cats[0];
+    const categoryColor = CategoryColors[primary] || colors.other;
+    const catInfo = ShopCategoryInfo[primary] || ShopCategoryInfo.other;
 
     return (
       <Card onPress={() => handleShopPress(item.id)} elevated>
@@ -66,9 +68,18 @@ const ShopsScreen: React.FC = () => {
                   </Text>
                 </View>
               )}
-              <Text style={[styles.categoryLabel, {color: colors.textSecondary}]}>
-                {item.category.charAt(0).toUpperCase() + item.category.slice(1)}
-              </Text>
+              <View style={styles.categoryChipsRow}>
+                {cats.map(cat => {
+                  const info = ShopCategoryInfo[cat] || ShopCategoryInfo.other;
+                  const chipColor = CategoryColors[cat] || colors.other;
+                  return (
+                    <View key={cat} style={[styles.categoryChip, {backgroundColor: chipColor + '18'}]}>
+                      <MaterialCommunityIcons name={info.icon} size={11} color={chipColor} />
+                      <Text style={[styles.categoryChipText, {color: chipColor}]}>{info.label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
             </View>
           </View>
         </View>
@@ -160,6 +171,24 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     marginTop: 4,
     textTransform: 'capitalize',
+  },
+  categoryChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 6,
+  },
+  categoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    gap: 2,
+  },
+  categoryChipText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   metaRow: {
     flexDirection: 'row',

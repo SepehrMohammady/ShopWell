@@ -17,7 +17,7 @@ import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import Geolocation from '@react-native-community/geolocation';
 import MapView, {PROVIDER_GOOGLE} from 'react-native-maps';
-import {RootStackParamList, Shop, ShopCategory, ShopCategoryInfo, ShopAddress} from '../types';
+import {RootStackParamList, Shop, ShopCategory, ShopCategoryInfo, ShopAddress, getShopCategories} from '../types';
 import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Button, Input, Card, useAlert} from '../components/common';
@@ -44,8 +44,8 @@ const AddEditShopScreen: React.FC = () => {
 
   const [name, setName] = useState(existingShop?.name || '');
   const [address, setAddress] = useState(existingShop?.address || '');
-  const [category, setCategory] = useState<ShopCategory>(
-    existingShop?.category || 'grocery',
+  const [selectedCategories, setSelectedCategories] = useState<ShopCategory[]>(
+    existingShop ? getShopCategories(existingShop) : ['grocery'],
   );
   const [notes, setNotes] = useState(existingShop?.notes || '');
   const [isFavorite, setIsFavorite] = useState(
@@ -128,6 +128,12 @@ const AddEditShopScreen: React.FC = () => {
     setShowMapPicker(false);
   };
 
+  const toggleCategory = (cat: ShopCategory) => {
+    setSelectedCategories(prev =>
+      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat],
+    );
+  };
+
   const handleSave = () => {
     if (!name.trim()) {
       showAlert({title: 'Error', message: 'Please enter a shop name'});
@@ -137,13 +143,15 @@ const AddEditShopScreen: React.FC = () => {
     const lat = parseFloat(latitude);
     const lng = parseFloat(longitude);
     const radius = parseInt(geofenceRadius, 10);
+    const shopCategories: ShopCategory[] = selectedCategories.length ? selectedCategories : ['other'];
 
     const now = getCurrentTimestamp();
     const shop: Shop = {
       id: existingShop?.id || generateId(),
       name: name.trim(),
       address: address.trim() || undefined,
-      category,
+      category: shopCategories[0],
+      categories: shopCategories,
       notes: notes.trim() || undefined,
       isFavorite,
       isOnline,
@@ -222,10 +230,11 @@ const AddEditShopScreen: React.FC = () => {
           </TouchableOpacity>
         </View>
 
-        <Text style={[styles.label, {color: colors.text}]}>Category</Text>
+        <Text style={[styles.label, {color: colors.text}]}>Categories</Text>
+        <Text style={[styles.categoryHint, {color: colors.textSecondary}]}>Select one or more</Text>
         <View style={styles.categoryGrid}>
           {categories.map(cat => {
-            const isSelected = category === cat;
+            const isSelected = selectedCategories.includes(cat);
             const info = ShopCategoryInfo[cat];
             const categoryColor = CategoryColors[cat] || colors.other;
 
@@ -240,8 +249,13 @@ const AddEditShopScreen: React.FC = () => {
                     backgroundColor: `${categoryColor}15`,
                   },
                 ]}
-                onPress={() => setCategory(cat)}
+                onPress={() => toggleCategory(cat)}
                 activeOpacity={0.7}>
+                {isSelected && (
+                  <View style={[styles.categoryCheck, {backgroundColor: categoryColor}]}>
+                    <MaterialCommunityIcons name="check" size={11} color="#FFFFFF" />
+                  </View>
+                )}
                 <MaterialCommunityIcons
                   name={info.icon}
                   size={24}
@@ -602,6 +616,21 @@ const styles = StyleSheet.create({
   categoryLabel: {
     fontSize: FontSize.xs,
     fontWeight: '500',
+  },
+  categoryHint: {
+    fontSize: FontSize.xs,
+    marginTop: -Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  categoryCheck: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   favoriteRow: {
     flexDirection: 'row',

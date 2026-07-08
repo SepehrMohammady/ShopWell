@@ -13,7 +13,7 @@ import {getImageFilename, buildImageUri, ensureImagesDir, getImagesDir} from './
 
 // CSV column definitions for each data type
 const PRODUCT_COLUMNS = ['id', 'name', 'category', 'isAvailable', 'notes', 'imageUri', 'createdAt', 'updatedAt'];
-const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'createdAt', 'updatedAt'];
+const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'categories', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'createdAt', 'updatedAt'];
 const SCHEDULE_COLUMNS = ['id', 'title', 'shopId', 'productIds', 'date', 'time', 'isRecurring', 'recurringPattern', 'reminder', 'reminderMinutes', 'notes', 'isCompleted', 'createdAt', 'updatedAt'];
 const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'quantity', 'unit', 'url', 'lastUpdated'];
 const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'nearbyShopAction', 'currency', 'currencies'];
@@ -105,7 +105,13 @@ export const exportToCSV = (state: AppState): string => {
   }));
 
   sections.push(buildSection('Products', PRODUCT_COLUMNS, productsForExport));
-  sections.push(buildSection('Shops', SHOP_COLUMNS, state.shops));
+
+  // Flatten shop categories array to a pipe-separated string for CSV
+  const shopsForExport = state.shops.map(s => ({
+    ...s,
+    categories: (s.categories && s.categories.length ? s.categories : s.category ? [s.category] : []).join('|'),
+  }));
+  sections.push(buildSection('Shops', SHOP_COLUMNS, shopsForExport));
 
   // Flatten productIds array to pipe-separated string for CSV
   const schedulesForExport = state.schedules.map(s => ({
@@ -156,22 +162,30 @@ const toProduct = (row: any): Product => ({
 /**
  * Convert parsed row to a Shop
  */
-const toShop = (row: any): Shop => ({
-  id: row.id,
-  name: row.name,
-  address: row.address || undefined,
-  category: row.category || 'other',
-  notes: row.notes || undefined,
-  isFavorite: row.isFavorite === 'true',
-  isOnline: row.isOnline === 'true' ? true : undefined,
-  url: row.url || undefined,
-  latitude: row.latitude ? parseFloat(row.latitude) : undefined,
-  longitude: row.longitude ? parseFloat(row.longitude) : undefined,
-  geofenceRadius: row.geofenceRadius ? parseInt(row.geofenceRadius, 10) : undefined,
-  notifyOnNearby: row.notifyOnNearby === 'true' ? true : undefined,
-  createdAt: row.createdAt,
-  updatedAt: row.updatedAt,
-});
+const toShop = (row: any): Shop => {
+  const categories = row.categories
+    ? row.categories.split('|').filter((s: string) => s)
+    : row.category
+    ? [row.category]
+    : [];
+  return {
+    id: row.id,
+    name: row.name,
+    address: row.address || undefined,
+    category: row.category || categories[0] || 'other',
+    categories: categories.length ? categories : undefined,
+    notes: row.notes || undefined,
+    isFavorite: row.isFavorite === 'true',
+    isOnline: row.isOnline === 'true' ? true : undefined,
+    url: row.url || undefined,
+    latitude: row.latitude ? parseFloat(row.latitude) : undefined,
+    longitude: row.longitude ? parseFloat(row.longitude) : undefined,
+    geofenceRadius: row.geofenceRadius ? parseInt(row.geofenceRadius, 10) : undefined,
+    notifyOnNearby: row.notifyOnNearby === 'true' ? true : undefined,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
+};
 
 /**
  * Convert parsed row to a Schedule
@@ -328,14 +342,21 @@ export const exportAndShare = async (state: AppState): Promise<boolean> => {
     const zipPath = `${RNFS.CachesDirectoryPath}/${zipName}`;
     await zip(stagingDir, zipPath);
 
-    // Share
-    await Share.open({
-      url: `file://${zipPath}`,
-      type: 'application/zip',
-      filename: zipName,
-      title: 'Export ShopWell Backup',
-      subject: 'ShopWell Backup',
-    });
+    // The backup archive was created successfully at this point. Present the
+    // share sheet so the user can save it; a dismissed/cancelled share is NOT a
+    // backup failure (Android reports share results inconsistently), so swallow
+    // any share error here.
+    try {
+      await Share.open({
+        url: `file://${zipPath}`,
+        type: 'application/zip',
+        filename: zipName,
+        title: 'Export ShopWell Backup',
+        subject: 'ShopWell Backup',
+      });
+    } catch (shareError) {
+      // Ignore — the backup file was still created.
+    }
 
     // Cleanup staging
     await RNFS.unlink(stagingDir).catch(() => {});
@@ -344,10 +365,7 @@ export const exportAndShare = async (state: AppState): Promise<boolean> => {
   } catch (error: any) {
     // Cleanup on error
     await RNFS.unlink(stagingDir).catch(() => {});
-    if (error?.message?.includes('User did not share')) {
-      return false;
-    }
-    console.error('Export failed:', error);
+    console.error('Backup failed:', error);
     throw error;
   }
 };
