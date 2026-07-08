@@ -6,7 +6,7 @@
   **Your smart shopping companion — plan smarter, shop better.**
 
   ![Platform](https://img.shields.io/badge/platform-Android%20%7C%20iOS%20%7C%20Windows-brightgreen)
-  ![Version](https://img.shields.io/badge/version-0.0.12-blue)
+  ![Version](https://img.shields.io/badge/version-0.0.29-blue)
   ![License](https://img.shields.io/badge/license-Private-lightgrey)
   ![Offline](https://img.shields.io/badge/works%20offline-✔-success)
 </div>

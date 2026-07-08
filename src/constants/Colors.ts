@@ -4,6 +4,8 @@
  * Supports Light and Dark mode
  */
 
+import {ShopCategoryInfo} from '../types';
+
 // Light theme colors
 export const LightColors = {
   // Primary colors
@@ -101,11 +103,8 @@ export const DarkColors = {
 // Default export for backwards compatibility (will be replaced by theme context)
 export const Colors = LightColors;
 
-export const CategoryColors: {[key: string]: string} = {
-  grocery: Colors.grocery,
-  pharmacy: Colors.pharmacy,
-  electronics: Colors.electronics,
-  clothing: Colors.clothing,
-  homeGoods: Colors.homeGoods,
-  other: Colors.other,
-};
+// Shop category colors are derived from ShopCategoryInfo (single source of truth),
+// so adding a category there automatically makes its color available everywhere.
+export const CategoryColors: {[key: string]: string} = Object.fromEntries(
+  Object.entries(ShopCategoryInfo).map(([id, info]) => [id, info.color]),
+);

@@ -27,7 +27,8 @@ import {generateId, getCurrentTimestamp} from '../utils';
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'AddEditShop'>;
 
-const categories: ShopCategory[] = ['grocery', 'pharmacy', 'electronics', 'clothing', 'homeGoods', 'other'];
+// Derived from ShopCategoryInfo so new categories appear automatically (order preserved, 'other' last).
+const categories = Object.keys(ShopCategoryInfo) as ShopCategory[];
 
 const AddEditShopScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();

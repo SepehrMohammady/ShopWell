@@ -115,7 +115,7 @@ const ShopDetailScreen: React.FC = () => {
             <View style={styles.shopInfo}>
               <Text style={[styles.shopName, {color: colors.text}]}>{shop.name}</Text>
               <Text style={[styles.categoryLabel, {color: colors.textSecondary}]}>
-                {shop.category.charAt(0).toUpperCase() + shop.category.slice(1)}
+                {ShopCategoryInfo[shop.category]?.label || 'Other'}
               </Text>
             </View>
             <TouchableOpacity

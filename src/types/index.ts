@@ -63,12 +63,30 @@ export interface PriceComparison {
 }
 
 // Shop Category
+// Taxonomy synthesized from reliable retail standards: Google Places API place
+// types, OpenStreetMap Key:shop, NAICS 2022 (sectors 44-45), and mainstream
+// marketplace departments (Amazon / Yelp / Google Shopping).
 export type ShopCategory =
   | 'grocery'
+  | 'convenience'
   | 'pharmacy'
-  | 'electronics'
+  | 'beauty'
   | 'clothing'
+  | 'jewelry'
+  | 'electronics'
   | 'homeGoods'
+  | 'furniture'
+  | 'hardware'
+  | 'garden'
+  | 'beverages'
+  | 'sports'
+  | 'toys'
+  | 'books'
+  | 'pets'
+  | 'babyKids'
+  | 'automotive'
+  | 'department'
+  | 'thrift'
   | 'other';
 
 // Shop address/branch with location
@@ -157,14 +175,30 @@ export type MainTabParamList = {
   Settings: undefined;
 };
 
-// Shop category display info
+// Shop category display info (single source of truth for label, icon and color).
+// Icons are MaterialCommunityIcons glyph names; ordered everyday -> specialized.
 export const ShopCategoryInfo: Record<ShopCategory, {label: string; icon: string; color: string}> = {
-  grocery: {label: 'Grocery', icon: 'cart', color: '#4CAF50'},
-  pharmacy: {label: 'Pharmacy', icon: 'pill', color: '#F44336'},
-  electronics: {label: 'Electronics', icon: 'cellphone', color: '#2196F3'},
-  clothing: {label: 'Clothing', icon: 'tshirt-crew', color: '#9C27B0'},
-  homeGoods: {label: 'Home Goods', icon: 'home', color: '#FF9800'},
-  other: {label: 'Other', icon: 'store', color: '#607D8B'},
+  grocery: {label: 'Grocery', icon: 'cart', color: '#43A047'},
+  convenience: {label: 'Convenience', icon: 'store-24-hour', color: '#00ACC1'},
+  pharmacy: {label: 'Pharmacy & Health', icon: 'pill', color: '#E53935'},
+  beauty: {label: 'Beauty', icon: 'lipstick', color: '#EC407A'},
+  clothing: {label: 'Clothing & Shoes', icon: 'tshirt-crew', color: '#8E24AA'},
+  jewelry: {label: 'Jewelry & Watches', icon: 'diamond-stone', color: '#5E35B1'},
+  electronics: {label: 'Electronics', icon: 'cellphone', color: '#1E88E5'},
+  homeGoods: {label: 'Home Goods', icon: 'home', color: '#FB8C00'},
+  furniture: {label: 'Furniture', icon: 'sofa', color: '#8D6E63'},
+  hardware: {label: 'Hardware & DIY', icon: 'hammer-wrench', color: '#546E7A'},
+  garden: {label: 'Garden & Florist', icon: 'flower', color: '#7CB342'},
+  beverages: {label: 'Drinks & Liquor', icon: 'bottle-wine', color: '#AD1457'},
+  sports: {label: 'Sports & Outdoors', icon: 'basketball', color: '#F4511E'},
+  toys: {label: 'Toys & Hobbies', icon: 'teddy-bear', color: '#FBC02D'},
+  books: {label: 'Books & Stationery', icon: 'book-open-variant', color: '#3949AB'},
+  pets: {label: 'Pet Supplies', icon: 'paw', color: '#00897B'},
+  babyKids: {label: 'Baby & Kids', icon: 'baby-carriage', color: '#FF8A65'},
+  automotive: {label: 'Automotive', icon: 'car', color: '#455A64'},
+  department: {label: 'Department & Discount', icon: 'storefront', color: '#5C6BC0'},
+  thrift: {label: 'Thrift & Secondhand', icon: 'recycle', color: '#9E9D24'},
+  other: {label: 'Other', icon: 'store', color: '#90A4AE'},
 };
 
 // Product category display info

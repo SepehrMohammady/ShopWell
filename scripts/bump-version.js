@@ -4,8 +4,9 @@
  * Updates version in ALL locations to keep them in sync:
  *   1. package.json
  *   2. package-lock.json
- *   3. src/constants/Version.ts
+ *   3. src/constants/Version.ts (VERSION_CODE kept equal to gradle versionCode)
  *   4. android/app/build.gradle (versionCode + versionName)
+ *   5. README.md version badge
  *
  * Usage:
  *   node scripts/bump-version.js <newVersion>
@@ -57,6 +58,12 @@ if (fs.existsSync(lockPath)) {
   results.push(`package-lock.json: updated`);
 }
 
+// The Android versionCode in build.gradle is authoritative; Version.ts is kept in sync with it.
+const gradlePath = path.join(root, 'android', 'app', 'build.gradle');
+let gradle = fs.readFileSync(gradlePath, 'utf8');
+const vcMatch = gradle.match(/versionCode (\d+)/);
+const newVc = vcMatch ? parseInt(vcMatch[1], 10) + 1 : 1;
+
 // 3. src/constants/Version.ts
 const versionTsPath = path.join(root, 'src', 'constants', 'Version.ts');
 let versionTs = fs.readFileSync(versionTsPath, 'utf8');
@@ -64,30 +71,29 @@ versionTs = versionTs.replace(
   /export const APP_VERSION = '.*?';/,
   `export const APP_VERSION = '${newVersion}';`,
 );
-// Increment VERSION_CODE
-const codeMatch = versionTs.match(/export const VERSION_CODE = (\d+);/);
-if (codeMatch) {
-  const newCode = parseInt(codeMatch[1], 10) + 1;
-  versionTs = versionTs.replace(
-    /export const VERSION_CODE = \d+;/,
-    `export const VERSION_CODE = ${newCode};`,
-  );
-  results.push(`Version.ts: APP_VERSION='${newVersion}', VERSION_CODE=${newCode}`);
-}
+versionTs = versionTs.replace(
+  /export const VERSION_CODE = \d+;/,
+  `export const VERSION_CODE = ${newVc};`,
+);
 fs.writeFileSync(versionTsPath, versionTs, 'utf8');
+results.push(`Version.ts: APP_VERSION='${newVersion}', VERSION_CODE=${newVc}`);
 
 // 4. android/app/build.gradle
-const gradlePath = path.join(root, 'android', 'app', 'build.gradle');
-let gradle = fs.readFileSync(gradlePath, 'utf8');
-const vcMatch = gradle.match(/versionCode (\d+)/);
-if (vcMatch) {
-  const newVc = parseInt(vcMatch[1], 10) + 1;
-  gradle = gradle.replace(/versionCode \d+/, `versionCode ${newVc}`);
-  results.push(`build.gradle: versionCode=${newVc}`);
-}
+gradle = gradle.replace(/versionCode \d+/, `versionCode ${newVc}`);
 gradle = gradle.replace(/versionName ".*?"/, `versionName "${newVersion}"`);
-results.push(`build.gradle: versionName="${newVersion}"`);
 fs.writeFileSync(gradlePath, gradle, 'utf8');
+results.push(`build.gradle: versionCode=${newVc}, versionName="${newVersion}"`);
+
+// 5. README.md version badge (e.g. version-0.0.29-blue)
+const readmePath = path.join(root, 'README.md');
+if (fs.existsSync(readmePath)) {
+  let readme = fs.readFileSync(readmePath, 'utf8');
+  const updated = readme.replace(/version-\d+\.\d+\.\d+-blue/g, `version-${newVersion}-blue`);
+  if (updated !== readme) {
+    fs.writeFileSync(readmePath, updated, 'utf8');
+    results.push('README.md: version badge updated');
+  }
+}
 
 // Summary
 console.log(`\n✔ Version bumped to ${newVersion}\n`);

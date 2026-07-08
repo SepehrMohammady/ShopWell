@@ -30,7 +30,7 @@ const ShopsScreen: React.FC = () => {
 
   const renderShopItem = ({item}: {item: Shop}) => {
     const categoryColor = CategoryColors[item.category] || colors.other;
-    const catInfo = ShopCategoryInfo[item.category];
+    const catInfo = ShopCategoryInfo[item.category] || ShopCategoryInfo.other;
 
     return (
       <Card onPress={() => handleShopPress(item.id)} elevated>

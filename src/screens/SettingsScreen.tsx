@@ -28,7 +28,13 @@ const SettingsScreen: React.FC = () => {
   const handleExport = async () => {
     setIsExporting(true);
     try {
-      await exportAndShare(state);
+      const shared = await exportAndShare(state);
+      if (shared) {
+        showAlert({
+          title: 'Backup Successful',
+          message: `Your backup was created successfully with ${state.products.length} products, ${state.shops.length} shops, ${state.schedules.length} schedules, and ${state.shopProductBrands.length} price entries.`,
+        });
+      }
     } catch (error: any) {
       showAlert({title: 'Export Failed', message: error?.message || 'Could not export data.'});
     }
