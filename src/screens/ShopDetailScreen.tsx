@@ -12,7 +12,7 @@ import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, Button, useAlert} from '../components/common';
 import {Spacing, FontSize, CategoryColors} from '../constants';
-import {formatDate, getCurrentTimestamp, openDirections, hasNavigableLocation} from '../utils';
+import {formatDate, getCurrentTimestamp, openDirections, hasNavigableLocation, openWebsite} from '../utils';
 import {formatPrice, getCheaperAlternatives} from '../utils/priceHelper';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -150,6 +150,19 @@ const ShopDetailScreen: React.FC = () => {
             activeOpacity={0.7}>
             <MaterialCommunityIcons name="directions" size={20} color={colors.primary} />
             <Text style={[styles.directionsButtonText, {color: colors.primary}]}>Directions</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Open Website (online shops) */}
+        {shop.isOnline && !!shop.url && (
+          <TouchableOpacity
+            style={[styles.directionsButton, {backgroundColor: colors.primary + '15', borderColor: colors.primary}]}
+            onPress={() =>
+              openWebsite(shop.url, () => showAlert({title: 'Website', message: 'Could not open the website.'}))
+            }
+            activeOpacity={0.7}>
+            <MaterialCommunityIcons name="web" size={20} color={colors.primary} />
+            <Text style={[styles.directionsButtonText, {color: colors.primary}]}>Open Website</Text>
           </TouchableOpacity>
         )}
 

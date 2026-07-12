@@ -53,3 +53,16 @@ export const openDirections = (t: DirectionsTarget, onError?: () => void): void 
     Linking.openURL(fallback).catch(() => onError?.()),
   );
 };
+
+/** Open a shop's website in the browser (prepends https:// when the scheme is missing). */
+export const openWebsite = (url?: string, onError?: () => void): void => {
+  if (!url || !url.trim()) {
+    onError?.();
+    return;
+  }
+  let target = url.trim();
+  if (!/^[a-z][a-z0-9+.-]*:\/\//i.test(target)) {
+    target = `https://${target}`;
+  }
+  Linking.openURL(target).catch(() => onError?.());
+};

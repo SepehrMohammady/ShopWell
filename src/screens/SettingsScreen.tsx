@@ -30,9 +30,13 @@ const SettingsScreen: React.FC = () => {
     try {
       const ok = await exportAndShare(state);
       if (ok) {
+        const p = state.products.length;
+        const sh = state.shops.length;
+        const sc = state.schedules.length;
+        const pr = state.shopProductBrands.length;
         showAlert({
           title: 'Backup Successful',
-          message: `Your backup was created successfully with ${state.products.length} products, ${state.shops.length} shops, ${state.schedules.length} schedules, and ${state.shopProductBrands.length} price entries. Save the .shopwell file somewhere safe so you can restore it later.`,
+          message: `Created a backup with ${p} product${p !== 1 ? 's' : ''}, ${sh} shop${sh !== 1 ? 's' : ''}, ${sc} schedule${sc !== 1 ? 's' : ''}, and ${pr} price ${pr !== 1 ? 'entries' : 'entry'}.`,
         });
       }
     } catch (error: any) {

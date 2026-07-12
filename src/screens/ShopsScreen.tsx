@@ -12,7 +12,7 @@ import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, FAB} from '../components/common';
 import {Spacing, FontSize, CategoryColors} from '../constants';
-import {openDirections, hasNavigableLocation} from '../utils';
+import {openDirections, hasNavigableLocation, openWebsite} from '../utils';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -35,6 +35,7 @@ const ShopsScreen: React.FC = () => {
     const categoryColor = CategoryColors[primary] || colors.other;
     const catInfo = ShopCategoryInfo[primary] || ShopCategoryInfo.other;
     const canNavigate = !item.isOnline && hasNavigableLocation(item);
+    const canOpenWeb = !!item.isOnline && !!item.url;
 
     return (
       <Card onPress={() => handleShopPress(item.id)} elevated>
@@ -93,6 +94,15 @@ const ShopsScreen: React.FC = () => {
               activeOpacity={0.7}
               hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
               <MaterialCommunityIcons name="directions" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          )}
+          {canOpenWeb && (
+            <TouchableOpacity
+              style={[styles.directionsIconButton, {backgroundColor: colors.primary + '12', borderColor: colors.primary + '40'}]}
+              onPress={() => openWebsite(item.url)}
+              activeOpacity={0.7}
+              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <MaterialCommunityIcons name="web" size={20} color={colors.primary} />
             </TouchableOpacity>
           )}
         </View>
@@ -177,6 +187,7 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.sm,
   },
   shopAddress: {
+    flex: 1,
     fontSize: FontSize.sm,
     marginTop: 2,
   },

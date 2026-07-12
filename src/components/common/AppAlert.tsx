@@ -243,8 +243,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   message: {
-    fontSize: FontSize.sm,
-    lineHeight: 20,
+    fontSize: FontSize.md,
+    lineHeight: 21,
     marginBottom: Spacing.md,
   },
   input: {
