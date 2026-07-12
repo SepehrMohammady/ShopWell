@@ -3,7 +3,7 @@
  */
 
 import React, {useMemo} from 'react';
-import {View, FlatList, StyleSheet, Text} from 'react-native';
+import {View, FlatList, StyleSheet, Text, TouchableOpacity} from 'react-native';
 import {useNavigation} from '@react-navigation/native';
 import {StackNavigationProp} from '@react-navigation/stack';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -12,6 +12,7 @@ import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, FAB} from '../components/common';
 import {Spacing, FontSize, CategoryColors} from '../constants';
+import {openDirections, hasNavigableLocation} from '../utils';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
 
@@ -33,6 +34,7 @@ const ShopsScreen: React.FC = () => {
     const primary = cats[0];
     const categoryColor = CategoryColors[primary] || colors.other;
     const catInfo = ShopCategoryInfo[primary] || ShopCategoryInfo.other;
+    const canNavigate = !item.isOnline && hasNavigableLocation(item);
 
     return (
       <Card onPress={() => handleShopPress(item.id)} elevated>
@@ -82,6 +84,17 @@ const ShopsScreen: React.FC = () => {
               </View>
             </View>
           </View>
+          {canNavigate && (
+            <TouchableOpacity
+              style={[styles.directionsIconButton, {backgroundColor: colors.primary + '12', borderColor: colors.primary + '40'}]}
+              onPress={() =>
+                openDirections({latitude: item.latitude, longitude: item.longitude, address: item.address, label: item.name})
+              }
+              activeOpacity={0.7}
+              hitSlop={{top: 8, bottom: 8, left: 8, right: 8}}>
+              <MaterialCommunityIcons name="directions" size={20} color={colors.primary} />
+            </TouchableOpacity>
+          )}
         </View>
       </Card>
     );
@@ -194,6 +207,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+  },
+  directionsIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: Spacing.sm,
   },
 });
 

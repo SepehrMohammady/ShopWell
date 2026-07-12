@@ -12,7 +12,7 @@ import {useApp} from '../context/AppContext';
 import {useTheme} from '../context/ThemeContext';
 import {Card, EmptyState, Button, useAlert} from '../components/common';
 import {Spacing, FontSize, CategoryColors} from '../constants';
-import {formatDate, getCurrentTimestamp} from '../utils';
+import {formatDate, getCurrentTimestamp, openDirections, hasNavigableLocation} from '../utils';
 import {formatPrice, getCheaperAlternatives} from '../utils/priceHelper';
 
 type NavigationProp = StackNavigationProp<RootStackParamList>;
@@ -137,6 +137,22 @@ const ShopDetailScreen: React.FC = () => {
           </View>
         </Card>
 
+        {/* Directions */}
+        {hasNavigableLocation(shop) && (
+          <TouchableOpacity
+            style={[styles.directionsButton, {backgroundColor: colors.primary + '15', borderColor: colors.primary}]}
+            onPress={() =>
+              openDirections(
+                {latitude: shop.latitude, longitude: shop.longitude, address: shop.address, label: shop.name},
+                () => showAlert({title: 'Navigation', message: 'Could not open a map app on this device.'}),
+              )
+            }
+            activeOpacity={0.7}>
+            <MaterialCommunityIcons name="directions" size={20} color={colors.primary} />
+            <Text style={[styles.directionsButtonText, {color: colors.primary}]}>Directions</Text>
+          </TouchableOpacity>
+        )}
+
         {/* Address */}
         {shop.address && (
           <Card>
@@ -163,6 +179,20 @@ const ShopDetailScreen: React.FC = () => {
                   <Text style={[{color: colors.textSecondary, fontSize: 12, marginTop: 2}]}>
                     📍 {addr.latitude.toFixed(4)}, {addr.longitude.toFixed(4)}
                   </Text>
+                )}
+                {hasNavigableLocation(addr) && (
+                  <TouchableOpacity
+                    style={[styles.branchDirectionsButton, {borderColor: colors.primary}]}
+                    onPress={() =>
+                      openDirections(
+                        {latitude: addr.latitude, longitude: addr.longitude, address: addr.address, label: addr.label || shop.name},
+                        () => showAlert({title: 'Navigation', message: 'Could not open a map app on this device.'}),
+                      )
+                    }
+                    activeOpacity={0.7}>
+                    <MaterialCommunityIcons name="directions" size={16} color={colors.primary} />
+                    <Text style={[styles.branchDirectionsText, {color: colors.primary}]}>Directions</Text>
+                  </TouchableOpacity>
                 )}
               </Card>
             ))}
@@ -344,6 +374,35 @@ const styles = StyleSheet.create({
   },
   favoriteButton: {
     padding: Spacing.sm,
+  },
+  directionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.md,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: Spacing.base,
+    gap: Spacing.sm,
+  },
+  directionsButtonText: {
+    fontSize: FontSize.base,
+    fontWeight: '600',
+  },
+  branchDirectionsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: Spacing.sm,
+    gap: 4,
+  },
+  branchDirectionsText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
   },
 
   detailLabel: {
