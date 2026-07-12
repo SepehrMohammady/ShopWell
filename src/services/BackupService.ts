@@ -13,7 +13,7 @@ import {getImageFilename, buildImageUri, ensureImagesDir, getImagesDir} from './
 
 // CSV column definitions for each data type
 const PRODUCT_COLUMNS = ['id', 'name', 'category', 'isAvailable', 'notes', 'imageUri', 'createdAt', 'updatedAt'];
-const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'categories', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'createdAt', 'updatedAt'];
+const SHOP_COLUMNS = ['id', 'name', 'address', 'category', 'categories', 'notes', 'isFavorite', 'isOnline', 'url', 'latitude', 'longitude', 'geofenceRadius', 'notifyOnNearby', 'addresses', 'createdAt', 'updatedAt'];
 const SCHEDULE_COLUMNS = ['id', 'title', 'shopId', 'productIds', 'date', 'time', 'isRecurring', 'recurringPattern', 'reminder', 'reminderMinutes', 'notes', 'isCompleted', 'createdAt', 'updatedAt'];
 const SPB_COLUMNS = ['id', 'productId', 'shopId', 'brand', 'price', 'currency', 'quantity', 'unit', 'url', 'lastUpdated'];
 const SETTINGS_COLUMNS = ['locationNotificationsEnabled', 'nearbyShopAction', 'currency', 'currencies'];
@@ -106,10 +106,12 @@ export const exportToCSV = (state: AppState): string => {
 
   sections.push(buildSection('Products', PRODUCT_COLUMNS, productsForExport));
 
-  // Flatten shop categories array to a pipe-separated string for CSV
+  // Flatten shop categories to a pipe-separated string, and serialize the
+  // additional branches (addresses) as a JSON string so they survive backup.
   const shopsForExport = state.shops.map(s => ({
     ...s,
     categories: (s.categories && s.categories.length ? s.categories : s.category ? [s.category] : []).join('|'),
+    addresses: s.addresses && s.addresses.length ? JSON.stringify(s.addresses) : '',
   }));
   sections.push(buildSection('Shops', SHOP_COLUMNS, shopsForExport));
 
@@ -168,6 +170,17 @@ const toShop = (row: any): Shop => {
     : row.category
     ? [row.category]
     : [];
+  let addresses: Shop['addresses'];
+  if (row.addresses) {
+    try {
+      const parsed = JSON.parse(row.addresses);
+      if (Array.isArray(parsed) && parsed.length) {
+        addresses = parsed;
+      }
+    } catch {
+      addresses = undefined;
+    }
+  }
   return {
     id: row.id,
     name: row.name,
@@ -182,6 +195,7 @@ const toShop = (row: any): Shop => {
     longitude: row.longitude ? parseFloat(row.longitude) : undefined,
     geofenceRadius: row.geofenceRadius ? parseInt(row.geofenceRadius, 10) : undefined,
     notifyOnNearby: row.notifyOnNearby === 'true' ? true : undefined,
+    addresses,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
