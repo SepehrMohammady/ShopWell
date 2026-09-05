@@ -13,6 +13,8 @@ import {
   defaultSettings,
 } from '../types';
 import {StorageService} from '../services/StorageService';
+import {syncScheduleNotifications} from '../services/NotificationService';
+import {rollScheduleForward} from '../utils/scheduleRecurrence';
 
 // Action types
 type Action =
@@ -195,9 +197,25 @@ export const AppProvider: React.FC<{children: React.ReactNode}> = ({
   useEffect(() => {
     const loadData = async () => {
       const savedState = await StorageService.loadAppState();
-      if (savedState) {
-        dispatch({type: 'SET_STATE', payload: savedState});
-      }
+      if (!savedState) return;
+
+      // Move every recurring schedule whose occurrence has passed on to its next
+      // one before anything renders, so the list and the armed alarms agree.
+      const now = new Date();
+      let rolledAny = false;
+      const schedules = (savedState.schedules || []).map(schedule => {
+        const rolled = rollScheduleForward(schedule, now);
+        if (!rolled) return schedule;
+        rolledAny = true;
+        return rolled;
+      });
+
+      const nextState = rolledAny ? {...savedState, schedules} : savedState;
+      dispatch({type: 'SET_STATE', payload: nextState});
+
+      // Re-arm reminders from the stored schedules on every start, so they
+      // survive reboots, app updates and force-stops.
+      syncScheduleNotifications(schedules, nextState.shops || []);
     };
     loadData();
   }, []);

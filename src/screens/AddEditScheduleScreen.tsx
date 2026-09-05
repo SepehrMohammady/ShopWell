@@ -175,6 +175,9 @@ const AddEditScheduleScreen: React.FC = () => {
     });
   }, [existingSchedule]);
 
+  const getShopName = (shopId?: string): string | undefined =>
+    shopId ? state.shops.find(s => s.id === shopId)?.name : undefined;
+
   const handleSave = () => {
     if (!title.trim()) {
       showAlert({title: 'Error', message: 'Please enter a title'});
@@ -208,15 +211,9 @@ const AddEditScheduleScreen: React.FC = () => {
       addSchedule(schedule);
     }
 
-    // Register or cancel the reminder notification
-    if (schedule.reminder) {
-      const shopName = schedule.shopId
-        ? state.shops.find(s => s.id === schedule.shopId)?.name
-        : undefined;
-      scheduleReminderNotification(schedule, shopName);
-    } else {
-      cancelScheduleNotification(schedule.id);
-    }
+    // Arming clears whatever was armed for this schedule before, and does
+    // nothing when the reminder is switched off.
+    scheduleReminderNotification(schedule, getShopName(schedule.shopId));
 
     navigation.goBack();
   };
@@ -231,6 +228,8 @@ const AddEditScheduleScreen: React.FC = () => {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
+            // Drop the alarm too, or a deleted trip still notifies.
+            cancelScheduleNotification(scheduleId!);
             deleteSchedule(scheduleId!);
             navigation.goBack();
           },
@@ -240,13 +239,17 @@ const AddEditScheduleScreen: React.FC = () => {
   };
 
   const handleToggleComplete = () => {
-    if (existingSchedule) {
-      updateSchedule({
-        ...existingSchedule,
-        isCompleted: !existingSchedule.isCompleted,
-        updatedAt: getCurrentTimestamp(),
-      });
-    }
+    if (!existingSchedule) return;
+
+    const updated: Schedule = {
+      ...existingSchedule,
+      isCompleted: !existingSchedule.isCompleted,
+      updatedAt: getCurrentTimestamp(),
+    };
+    updateSchedule(updated);
+
+    // Completing clears the pending alarm; un-completing puts it back.
+    scheduleReminderNotification(updated, getShopName(updated.shopId));
   };
 
   return (

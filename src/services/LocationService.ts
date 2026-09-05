@@ -44,38 +44,6 @@ export const requestLocationPermission = async (): Promise<LocationPermissionSta
 };
 
 /**
- * Request background location permission (Android 10+)
- */
-export const requestBackgroundLocationPermission = async (): Promise<LocationPermissionStatus> => {
-  if (Platform.OS === 'android' && Platform.Version >= 29) {
-    try {
-      const backgroundLocation = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.ACCESS_BACKGROUND_LOCATION,
-        {
-          title: 'Background Location Permission',
-          message: 'ShopWell needs background location access to notify you when near shops, even when the app is closed.',
-          buttonNeutral: 'Ask Me Later',
-          buttonNegative: 'Cancel',
-          buttonPositive: 'OK',
-        },
-      );
-
-      if (backgroundLocation === PermissionsAndroid.RESULTS.GRANTED) {
-        return 'granted';
-      } else if (backgroundLocation === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
-        return 'never_ask_again';
-      }
-      return 'denied';
-    } catch (err) {
-      console.warn('Background location permission error:', err);
-      return 'unknown';
-    }
-  }
-  
-  return 'granted'; // Not needed for older Android versions
-};
-
-/**
  * Check if location permissions are granted
  */
 export const checkLocationPermission = async (): Promise<boolean> => {

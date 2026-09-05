@@ -8,14 +8,34 @@ import notifee, {
   TimestampTrigger,
   AuthorizationStatus,
   AlarmType,
+  RepeatFrequency,
 } from '@notifee/react-native';
 import {Platform} from 'react-native';
 import {Shop, Schedule} from '../types';
 import {formatDistance} from './LocationService';
+import {
+  RecurringPattern,
+  addOccurrences,
+  getNextOccurrenceIndex,
+  getScheduleDateTime,
+} from '../utils/scheduleRecurrence';
 
 // Notification channel IDs
 const CHANNEL_NEARBY = 'shop-nearby';
 const CHANNEL_SCHEDULE = 'schedule-reminders';
+
+// All schedule alarms share this id prefix so they can be found and cleared.
+const SCHEDULE_ID_PREFIX = 'schedule-';
+
+// notifee repeats daily and weekly itself. It has no monthly frequency, so a
+// year of monthly occurrences is armed up front instead.
+const MONTHLY_LOOKAHEAD = 12;
+
+const REPEAT_FREQUENCY: Record<RecurringPattern, RepeatFrequency | undefined> = {
+  daily: RepeatFrequency.DAILY,
+  weekly: RepeatFrequency.WEEKLY,
+  monthly: undefined,
+};
 
 // Notification types
 export interface ShopNotification {
@@ -114,77 +134,151 @@ export const notifyNearbyShops = async (
 };
 
 /**
- * Schedule a reminder notification for a schedule item
+ * Notification id for one occurrence of a schedule. Occurrence 0 keeps the bare
+ * id so alarms created by older versions are still recognised and cleared.
+ */
+const buildScheduleNotificationId = (
+  scheduleId: string,
+  occurrence: number,
+): string =>
+  occurrence === 0
+    ? `${SCHEDULE_ID_PREFIX}${scheduleId}`
+    : `${SCHEDULE_ID_PREFIX}${scheduleId}-${occurrence}`;
+
+/**
+ * Ids of the alarms currently armed for one schedule, or for all of them when
+ * no schedule is given.
+ */
+const findArmedScheduleIds = async (scheduleId?: string): Promise<string[]> => {
+  const ids = await notifee.getTriggerNotificationIds();
+
+  if (!scheduleId) {
+    return ids.filter(id => id.startsWith(SCHEDULE_ID_PREFIX));
+  }
+
+  const base = `${SCHEDULE_ID_PREFIX}${scheduleId}`;
+  return ids.filter(id => id === base || id.startsWith(`${base}-`));
+};
+
+/**
+ * Cancel every alarm armed for a schedule.
+ */
+export const cancelScheduleNotification = async (
+  scheduleId: string,
+): Promise<void> => {
+  try {
+    const armed = await findArmedScheduleIds(scheduleId);
+    await Promise.all(armed.map(id => notifee.cancelNotification(id)));
+  } catch (error) {
+    console.error('Failed to cancel notification:', error);
+  }
+};
+
+/**
+ * Arm the reminder for a schedule, replacing whatever was armed for it before.
+ *
+ * Repeats are handed to notifee's own daily/weekly frequency where it has one,
+ * so they keep firing without the app being opened. Monthly has no native
+ * frequency, so a year of occurrences is armed at once. Everything runs on the
+ * device's AlarmManager - no server, no push, no background service.
  */
 export const scheduleReminderNotification = async (
   schedule: Schedule,
   shopName?: string,
 ): Promise<void> => {
-  if (!schedule.reminder) return;
-
   try {
-    const scheduleDate = new Date(schedule.date);
-    if (schedule.time) {
-      const timeParts = schedule.time.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-      if (timeParts) {
-        let hours = parseInt(timeParts[1], 10);
-        const minutes = parseInt(timeParts[2], 10);
-        const period = timeParts[3];
-        if (period?.toUpperCase() === 'PM' && hours < 12) hours += 12;
-        if (period?.toUpperCase() === 'AM' && hours === 12) hours = 0;
-        scheduleDate.setHours(hours, minutes, 0, 0);
-      }
-    }
-
-    const reminderOffset = (schedule.reminderMinutes || 0) * 60 * 1000;
-    const triggerTime = scheduleDate.getTime() - reminderOffset;
-
-    // Don't schedule if the trigger time is in the past
-    if (triggerTime <= Date.now()) return;
-
-    // Cancel any existing notification for this schedule
+    // Always clear first, so a schedule that moved into the past, was completed,
+    // or had its reminder switched off never leaves a stale alarm behind.
     await cancelScheduleNotification(schedule.id);
 
-    const trigger: TimestampTrigger = {
-      type: TriggerType.TIMESTAMP,
-      timestamp: triggerTime,
-      alarmManager: {
-        type: AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE,
-      },
-    };
+    if (!schedule.reminder || schedule.isCompleted) return;
+
+    const due = getScheduleDateTime(schedule);
+    const reminderOffset = (schedule.reminderMinutes || 0) * 60 * 1000;
+    const pattern = schedule.isRecurring ? schedule.recurringPattern : undefined;
+    const notBefore = new Date(Date.now() + reminderOffset);
+
+    // For a repeat, start at the first occurrence still in the future, so a
+    // schedule saved after today's time has passed arms the next one instead
+    // of nothing. Steps are counted from the original date to avoid drift.
+    const firstStep = pattern
+      ? getNextOccurrenceIndex(due, pattern, notBefore)
+      : 0;
+
+    const repeatFrequency = pattern ? REPEAT_FREQUENCY[pattern] : undefined;
+    const occurrences =
+      pattern && repeatFrequency === undefined ? MONTHLY_LOOKAHEAD : 1;
 
     let body = `Shopping trip: ${schedule.title}`;
     if (shopName) body += ` at ${shopName}`;
 
-    await notifee.createTriggerNotification(
-      {
-        id: `schedule-${schedule.id}`,
-        title: 'Shopping Reminder',
-        body,
-        android: {
-          channelId: CHANNEL_SCHEDULE,
-          smallIcon: 'ic_launcher',
-          pressAction: {id: 'default'},
-          importance: AndroidImportance.HIGH,
+    for (let i = 0; i < occurrences; i++) {
+      const occurrenceDue = pattern
+        ? addOccurrences(due, pattern, firstStep + i)
+        : due;
+      const triggerTime = occurrenceDue.getTime() - reminderOffset;
+
+      // A one-off whose moment has passed simply gets no alarm.
+      if (triggerTime <= Date.now()) continue;
+
+      const trigger: TimestampTrigger = {
+        type: TriggerType.TIMESTAMP,
+        timestamp: triggerTime,
+        alarmManager: {
+          type: AlarmType.SET_EXACT_AND_ALLOW_WHILE_IDLE,
         },
-      },
-      trigger,
-    );
+      };
+      if (repeatFrequency !== undefined) {
+        trigger.repeatFrequency = repeatFrequency;
+      }
+
+      await notifee.createTriggerNotification(
+        {
+          id: buildScheduleNotificationId(schedule.id, i),
+          title: 'Shopping Reminder',
+          body,
+          android: {
+            channelId: CHANNEL_SCHEDULE,
+            smallIcon: 'ic_launcher',
+            pressAction: {id: 'default'},
+            importance: AndroidImportance.HIGH,
+          },
+        },
+        trigger,
+      );
+    }
   } catch (error) {
     console.error('Failed to schedule reminder:', error);
   }
 };
 
 /**
- * Cancel a scheduled notification
+ * Re-arm every schedule reminder from the app's own data.
+ *
+ * Android drops pending alarms on reboot, app update and force-stop, and a
+ * repeat that notifee was tracking goes with them. Running this at startup
+ * means the stored schedules are the single source of truth, so reminders
+ * recover by themselves instead of going quiet after the first one fires.
  */
-export const cancelScheduleNotification = async (
-  scheduleId: string,
+export const syncScheduleNotifications = async (
+  schedules: Schedule[],
+  shops: Shop[],
 ): Promise<void> => {
   try {
-    await notifee.cancelNotification(`schedule-${scheduleId}`);
+    // Clear everything first, including alarms whose schedule has been deleted.
+    const armed = await findArmedScheduleIds();
+    await Promise.all(armed.map(id => notifee.cancelNotification(id)));
+
+    for (const schedule of schedules) {
+      if (!schedule.reminder || schedule.isCompleted) continue;
+
+      const shopName = schedule.shopId
+        ? shops.find(s => s.id === schedule.shopId)?.name
+        : undefined;
+      await scheduleReminderNotification(schedule, shopName);
+    }
   } catch (error) {
-    console.error('Failed to cancel notification:', error);
+    console.error('Failed to sync schedule reminders:', error);
   }
 };
 

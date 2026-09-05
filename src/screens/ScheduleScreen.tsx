@@ -137,13 +137,7 @@ const ScheduleScreen: React.FC = () => {
               {item.reminder && (
                 <View style={[styles.badge, {backgroundColor: colors.warning + '15'}]}>
                   <MaterialCommunityIcons name="bell" size={13} color={colors.warning} />
-                  <Text style={[styles.badgeText, {color: colors.warning}]}>
-                    {!item.reminderMinutes || item.reminderMinutes === 0
-                      ? 'at time'
-                      : item.reminderMinutes >= 60
-                        ? `${item.reminderMinutes / 60}h before`
-                        : `${item.reminderMinutes}m before`}
-                  </Text>
+                  <Text style={[styles.badgeText, {color: colors.warning}]}>at time</Text>
                 </View>
               )}
             </View>
