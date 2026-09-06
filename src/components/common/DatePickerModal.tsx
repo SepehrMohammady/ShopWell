@@ -1,6 +1,7 @@
 /**
  * Custom in-app Date Picker Modal
- * Replaces Android native DateTimePicker with app-themed UI
+ * A month calendar grid: weekday columns make the day of the week unambiguous,
+ * and tapping a date cannot land on a different one the way a scroll wheel can.
  */
 
 import React, {useState, useRef, useEffect} from 'react';
@@ -11,9 +12,8 @@ import {
   Modal,
   TouchableOpacity,
   Animated,
-  Dimensions,
-  FlatList,
 } from 'react-native';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 import {useTheme} from '../../context/ThemeContext';
 import {Spacing, FontSize} from '../../constants';
 
@@ -25,71 +25,53 @@ interface DatePickerModalProps {
   onCancel: () => void;
 }
 
-const ITEM_HEIGHT = 44;
-const VISIBLE_ITEMS = 5;
-
 const months = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ];
 
-const WheelColumn: React.FC<{
-  data: {label: string; value: number}[];
-  selectedValue: number;
-  onValueChange: (value: number) => void;
-  colors: any;
-}> = ({data, selectedValue, onValueChange, colors}) => {
-  const flatListRef = useRef<FlatList>(null);
-  const selectedIndex = data.findIndex(d => d.value === selectedValue);
+// Week starts on Monday.
+const weekdayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-  useEffect(() => {
-    if (flatListRef.current && selectedIndex >= 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({index: selectedIndex, animated: false, viewPosition: 0.5});
-      }, 50);
-    }
-  }, [selectedIndex]);
+/** Midnight of the given date, so comparisons ignore the time of day. */
+const startOfDay = (date: Date): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
-  const handleMomentumScrollEnd = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-    const clamped = Math.max(0, Math.min(index, data.length - 1));
-    if (data[clamped]) {
-      onValueChange(data[clamped].value);
-    }
-  };
+const isSameDay = (a: Date, b: Date): boolean =>
+  a.getFullYear() === b.getFullYear() &&
+  a.getMonth() === b.getMonth() &&
+  a.getDate() === b.getDate();
 
-  return (
-    <View style={styles.wheelColumn}>
-      <FlatList
-        ref={flatListRef}
-        data={data}
-        keyExtractor={(item, i) => `${item.value}-${i}`}
-        renderItem={({item}) => {
-          const isSelected = item.value === selectedValue;
-          return (
-            <TouchableOpacity
-              style={[styles.wheelItem, isSelected && {backgroundColor: colors.primary + '15'}]}
-              onPress={() => onValueChange(item.value)}>
-              <Text style={[
-                styles.wheelItemText,
-                {color: isSelected ? colors.primary : colors.textSecondary},
-                isSelected && styles.wheelItemTextSelected,
-              ]}>
-                {item.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        }}
-        showsVerticalScrollIndicator={false}
-        snapToInterval={ITEM_HEIGHT}
-        decelerationRate="fast"
-        onMomentumScrollEnd={handleMomentumScrollEnd}
-        contentContainerStyle={{paddingVertical: ITEM_HEIGHT * 2}}
-        getItemLayout={(_, index) => ({length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index})}
-      />
-    </View>
-  );
+/**
+ * The month laid out as whole weeks, with null for the padding cells before the
+ * 1st and after the last day.
+ */
+const buildMonthGrid = (year: number, month: number): (number | null)[] => {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // getDay() is 0=Sunday; shift so 0=Monday.
+  const leading = (new Date(year, month, 1).getDay() + 6) % 7;
+
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < leading; i++) {
+    cells.push(null);
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    cells.push(day);
+  }
+  while (cells.length % 7 !== 0) {
+    cells.push(null);
+  }
+  return cells;
 };
 
 export const DatePickerModal: React.FC<DatePickerModalProps> = ({
@@ -101,67 +83,185 @@ export const DatePickerModal: React.FC<DatePickerModalProps> = ({
 }) => {
   const {colors} = useTheme();
   const fadeAnim = useRef(new Animated.Value(0)).current;
-  const [selectedYear, setSelectedYear] = useState(value.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(value.getMonth());
-  const [selectedDay, setSelectedDay] = useState(value.getDate());
+
+  const [selected, setSelected] = useState<Date>(() => startOfDay(value));
+  const [viewYear, setViewYear] = useState(value.getFullYear());
+  const [viewMonth, setViewMonth] = useState(value.getMonth());
 
   useEffect(() => {
     if (visible) {
-      setSelectedYear(value.getFullYear());
-      setSelectedMonth(value.getMonth());
-      setSelectedDay(value.getDate());
-      Animated.timing(fadeAnim, {toValue: 1, duration: 200, useNativeDriver: true}).start();
+      const initial = startOfDay(value);
+      setSelected(initial);
+      setViewYear(initial.getFullYear());
+      setViewMonth(initial.getMonth());
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 200,
+        useNativeDriver: true,
+      }).start();
     } else {
       fadeAnim.setValue(0);
     }
   }, [visible]);
 
-  const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
-  const daysInMonth = getDaysInMonth(selectedYear, selectedMonth);
+  const today = startOfDay(new Date());
+  const minDay = minimumDate ? startOfDay(minimumDate) : undefined;
+  const cells = buildMonthGrid(viewYear, viewMonth);
 
-  // Clamp day
-  const clampedDay = Math.min(selectedDay, daysInMonth);
+  const goToMonth = (delta: number) => {
+    const shifted = new Date(viewYear, viewMonth + delta, 1);
+    setViewYear(shifted.getFullYear());
+    setViewMonth(shifted.getMonth());
+  };
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({length: 5}, (_, i) => ({label: `${currentYear + i}`, value: currentYear + i}));
-  const monthData = months.map((m, i) => ({label: m, value: i}));
-  const dayData = Array.from({length: daysInMonth}, (_, i) => ({label: `${i + 1}`, value: i + 1}));
-
-  const handleConfirm = () => {
-    const result = new Date(selectedYear, selectedMonth, clampedDay);
-    if (minimumDate && result < minimumDate) {
-      onConfirm(minimumDate);
-    } else {
-      onConfirm(result);
+  const goToToday = () => {
+    setViewYear(today.getFullYear());
+    setViewMonth(today.getMonth());
+    if (!minDay || today.getTime() >= minDay.getTime()) {
+      setSelected(today);
     }
   };
 
-  const previewDate = new Date(selectedYear, selectedMonth, clampedDay);
-  const dayName = previewDate.toLocaleDateString('en-US', {weekday: 'long'});
+  const dayName = selected.toLocaleDateString('en-US', {weekday: 'long'});
 
   return (
-    <Modal visible={visible} transparent animationType="none" onRequestClose={onCancel} statusBarTranslucent>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="none"
+      onRequestClose={onCancel}
+      statusBarTranslucent>
       <Animated.View style={[styles.overlay, {opacity: fadeAnim}]}>
-        <TouchableOpacity style={styles.overlayTouch} activeOpacity={1} onPress={onCancel} />
-        <Animated.View style={[styles.sheet, {backgroundColor: colors.surface}]}>
+        <TouchableOpacity
+          style={styles.overlayTouch}
+          activeOpacity={1}
+          onPress={onCancel}
+        />
+        <Animated.View
+          style={[styles.sheet, {backgroundColor: colors.surface}]}>
           <View style={styles.sheetHandle}>
-            <View style={[styles.handleBar, {backgroundColor: colors.border}]} />
+            <View
+              style={[styles.handleBar, {backgroundColor: colors.border}]}
+            />
           </View>
-          <Text style={[styles.sheetTitle, {color: colors.text}]}>Select Date</Text>
-          <Text style={[styles.preview, {color: colors.primary}]}>
-            {dayName}, {months[selectedMonth]} {clampedDay}, {selectedYear}
+
+          <Text style={[styles.sheetTitle, {color: colors.text}]}>
+            Select Date
           </Text>
-          <View style={styles.wheelsRow}>
-            <WheelColumn data={monthData} selectedValue={selectedMonth} onValueChange={setSelectedMonth} colors={colors} />
-            <WheelColumn data={dayData} selectedValue={clampedDay} onValueChange={setSelectedDay} colors={colors} />
-            <WheelColumn data={years} selectedValue={selectedYear} onValueChange={setSelectedYear} colors={colors} />
-          </View>
-          <View style={styles.buttonRow}>
-            <TouchableOpacity style={[styles.button, {backgroundColor: colors.background}]} onPress={onCancel}>
-              <Text style={[styles.buttonText, {color: colors.textSecondary}]}>Cancel</Text>
+          <Text style={[styles.preview, {color: colors.primary}]}>
+            {dayName}, {months[selected.getMonth()]} {selected.getDate()},{' '}
+            {selected.getFullYear()}
+          </Text>
+
+          {/* Month navigation */}
+          <View style={styles.monthRow}>
+            <TouchableOpacity
+              style={[styles.monthNav, {backgroundColor: colors.background}]}
+              onPress={() => goToMonth(-1)}
+              accessibilityLabel="Previous month">
+              <MaterialCommunityIcons
+                name="chevron-left"
+                size={24}
+                color={colors.text}
+              />
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.button, {backgroundColor: colors.primary}]} onPress={handleConfirm}>
-              <Text style={[styles.buttonText, {color: colors.textInverse}]}>Confirm</Text>
+            <Text style={[styles.monthLabel, {color: colors.text}]}>
+              {months[viewMonth]} {viewYear}
+            </Text>
+            <TouchableOpacity
+              style={[styles.monthNav, {backgroundColor: colors.background}]}
+              onPress={() => goToMonth(1)}
+              accessibilityLabel="Next month">
+              <MaterialCommunityIcons
+                name="chevron-right"
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {/* Weekday headers */}
+          <View style={styles.weekRow}>
+            {weekdayLabels.map(label => (
+              <View key={label} style={styles.cell}>
+                <Text
+                  style={[styles.weekdayText, {color: colors.textSecondary}]}>
+                  {label}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Day grid */}
+          <View style={styles.grid}>
+            {cells.map((day, index) => {
+              if (day === null) {
+                return <View key={`pad-${index}`} style={styles.cell} />;
+              }
+
+              const cellDate = new Date(viewYear, viewMonth, day);
+              const isSelected = isSameDay(cellDate, selected);
+              const isToday = isSameDay(cellDate, today);
+              const isDisabled =
+                !!minDay && cellDate.getTime() < minDay.getTime();
+
+              return (
+                <TouchableOpacity
+                  key={`day-${day}`}
+                  style={styles.cell}
+                  disabled={isDisabled}
+                  onPress={() => setSelected(cellDate)}>
+                  <View
+                    style={[
+                      styles.dayCircle,
+                      isToday &&
+                        !isSelected && {
+                          borderColor: colors.primary,
+                          borderWidth: 1,
+                        },
+                      isSelected && {backgroundColor: colors.primary},
+                    ]}>
+                    <Text
+                      style={[
+                        styles.dayText,
+                        {color: colors.text},
+                        isDisabled && {
+                          color: colors.textSecondary,
+                          opacity: 0.35,
+                        },
+                        isSelected && {
+                          color: colors.textInverse,
+                          fontWeight: '700',
+                        },
+                      ]}>
+                      {day}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <TouchableOpacity onPress={goToToday} style={styles.todayButton}>
+            <Text style={[styles.todayText, {color: colors.primary}]}>
+              Today
+            </Text>
+          </TouchableOpacity>
+
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.button, {backgroundColor: colors.background}]}
+              onPress={onCancel}>
+              <Text style={[styles.buttonText, {color: colors.textSecondary}]}>
+                Cancel
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, {backgroundColor: colors.primary}]}
+              onPress={() => onConfirm(selected)}>
+              <Text style={[styles.buttonText, {color: colors.textInverse}]}>
+                Confirm
+              </Text>
             </TouchableOpacity>
           </View>
         </Animated.View>
@@ -206,31 +306,69 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: Spacing.base,
   },
-  wheelsRow: {
+  monthRow: {
     flexDirection: 'row',
-    height: ITEM_HEIGHT * VISIBLE_ITEMS,
-    paddingHorizontal: Spacing.base,
-  },
-  wheelColumn: {
-    flex: 1,
-  },
-  wheelItem: {
-    height: ITEM_HEIGHT,
-    justifyContent: 'center',
     alignItems: 'center',
-    borderRadius: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.base,
+    marginBottom: Spacing.sm,
   },
-  wheelItemText: {
+  monthNav: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  monthLabel: {
+    fontSize: FontSize.base,
+    fontWeight: '600',
+  },
+  weekRow: {
+    flexDirection: 'row',
+    paddingHorizontal: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  grid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: Spacing.sm,
+  },
+  cell: {
+    width: `${100 / 7}%`,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 2,
+  },
+  weekdayText: {
+    fontSize: FontSize.sm,
+    fontWeight: '600',
+  },
+  dayCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayText: {
     fontSize: FontSize.base,
   },
-  wheelItemTextSelected: {
-    fontWeight: '700',
+  todayButton: {
+    alignSelf: 'center',
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.base,
+    marginTop: Spacing.xs,
+  },
+  todayText: {
+    fontSize: FontSize.base,
+    fontWeight: '600',
   },
   buttonRow: {
     flexDirection: 'row',
     paddingHorizontal: Spacing.base,
     gap: Spacing.sm,
-    marginTop: Spacing.base,
+    marginTop: Spacing.xs,
   },
   button: {
     flex: 1,

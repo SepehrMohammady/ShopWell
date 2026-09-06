@@ -24,23 +24,30 @@ interface TimePickerModalProps {
 }
 
 const ITEM_HEIGHT = 44;
+const VISIBLE_ITEMS = 5;
+// Half the list is padded above and below so the first and last values can
+// still reach the middle of the wheel.
+const WHEEL_PADDING = ITEM_HEIGHT * 2;
 
 const WheelColumn: React.FC<{
   data: {label: string; value: number}[];
   selectedValue: number;
   onValueChange: (value: number) => void;
   colors: any;
-}> = ({data, selectedValue, onValueChange, colors}) => {
+  visible: boolean;
+}> = ({data, selectedValue, onValueChange, colors, visible}) => {
   const flatListRef = useRef<FlatList>(null);
   const selectedIndex = data.findIndex(d => d.value === selectedValue);
 
+  // Re-centre whenever the sheet opens too, not only when the value changes,
+  // or reopening it would leave the wheel on its previous scroll position.
   useEffect(() => {
-    if (flatListRef.current && selectedIndex >= 0) {
+    if (visible && flatListRef.current && selectedIndex >= 0) {
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({index: selectedIndex, animated: false, viewPosition: 0.5});
       }, 50);
     }
-  }, [selectedIndex]);
+  }, [selectedIndex, visible]);
 
   const handleMomentumScrollEnd = (event: any) => {
     const offsetY = event.nativeEvent.contentOffset.y;
@@ -77,8 +84,16 @@ const WheelColumn: React.FC<{
         snapToInterval={ITEM_HEIGHT}
         decelerationRate="fast"
         onMomentumScrollEnd={handleMomentumScrollEnd}
-        contentContainerStyle={{paddingVertical: ITEM_HEIGHT * 2}}
-        getItemLayout={(_, index) => ({length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index})}
+        contentContainerStyle={{paddingVertical: WHEEL_PADDING}}
+        // The offset has to include the leading padding, otherwise scrollToIndex
+        // parks the selected value two rows below the middle of the wheel while
+        // onMomentumScrollEnd still reads the middle - so a scroll would land on
+        // a value two places from the one the user lined up.
+        getItemLayout={(_, index) => ({
+          length: ITEM_HEIGHT,
+          offset: WHEEL_PADDING + ITEM_HEIGHT * index,
+          index,
+        })}
       />
     </View>
   );
@@ -140,14 +155,23 @@ export const TimePickerModal: React.FC<TimePickerModalProps> = ({
             {previewH}:{previewM} {selectedPeriod}
           </Text>
           <View style={styles.wheelsRow}>
-            <WheelColumn data={hours} selectedValue={selectedHour} onValueChange={setSelectedHour} colors={colors} />
+            {/* Marks the row the wheels actually select. */}
+            <View
+              pointerEvents="none"
+              style={[
+                styles.selectionBand,
+                {backgroundColor: colors.primary + '15', borderColor: colors.primary + '40'},
+              ]}
+            />
+            <WheelColumn data={hours} selectedValue={selectedHour} onValueChange={setSelectedHour} colors={colors} visible={visible} />
             <Text style={[styles.separator, {color: colors.text}]}>:</Text>
-            <WheelColumn data={minutes} selectedValue={selectedMinute} onValueChange={setSelectedMinute} colors={colors} />
+            <WheelColumn data={minutes} selectedValue={selectedMinute} onValueChange={setSelectedMinute} colors={colors} visible={visible} />
             <WheelColumn
               data={periods}
               selectedValue={selectedPeriod === 'AM' ? 0 : 1}
               onValueChange={v => setSelectedPeriod(v === 0 ? 'AM' : 'PM')}
               colors={colors}
+              visible={visible}
             />
           </View>
           <View style={styles.buttonRow}>
@@ -202,17 +226,29 @@ const styles = StyleSheet.create({
   },
   wheelsRow: {
     flexDirection: 'row',
-    height: ITEM_HEIGHT * 5,
+    height: ITEM_HEIGHT * VISIBLE_ITEMS,
     paddingHorizontal: Spacing.lg,
-    alignItems: 'center',
   },
   wheelColumn: {
     flex: 1,
+    height: ITEM_HEIGHT * VISIBLE_ITEMS,
+  },
+  selectionBand: {
+    position: 'absolute',
+    left: Spacing.sm,
+    right: Spacing.sm,
+    top: ITEM_HEIGHT * 2,
+    height: ITEM_HEIGHT,
+    borderRadius: 8,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
   },
   separator: {
     fontSize: 24,
     fontWeight: '700',
     paddingHorizontal: 4,
+    // The row no longer centres its children, so the colon centres itself.
+    alignSelf: 'center',
   },
   wheelItem: {
     height: ITEM_HEIGHT,
